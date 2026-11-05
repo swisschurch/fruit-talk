@@ -27,10 +27,14 @@ window.APP_CONFIG = {
   // Departments and groups used until the coordinator saves their own
   // in the "Groups & leaders" tab (that version takes priority).
   departments: [
-    { name: "Youth", zones: ["Zurich Team 1", "Zurich Team 2", "Zurich Team 3", "Zurich Team 4"] },
-    { name: "Women's", zones: ["Group 1", "Group 2"] },
-    { name: "Men's", zones: ["Group 1", "Group 2"] },
-    { name: "Geneva", zones: ["Geneva"] },
-    { name: "Newcomers", zones: ["Newcomers"] },
+    { name: "Zürich 1 (Youth)", zones: ["Team 1 Cell 1", "Team 1 Cell 2", "Team 1 Cell 3", "Team 1 Cell 4"] },
+    { name: "Zürich 2 (Youth)", zones: ["Team 2 Cell 1", "Team 2 Cell 2", "Team 2 Cell 3", "Team 2 Cell 4 (Culture)"] },
+    { name: "Zürich 3 (Youth)", zones: ["Team 3 Cell 1", "Team 3 Cell 2", "Team 3 Cell 3", "Team 3 Cell 4"] },
+    { name: "Zürich 4 (Youth)", zones: ["Team 4 Cell 1", "Team 4 Cell 2", "Team 4 Cell 3", "Team 4 Cell 4"] },
+    { name: "Newcomers Department", zones: ["Newcomers 1"] },
+    { name: "Geneva", zones: ["Geneva Cell 1"] },
+    { name: "Women's Group", zones: ["Women 1", "Women 2", "Women 3", "Women 4"] },
+    { name: "Men's Group", zones: ["Men Cell 1", "Men Cell 2"] },
+    { name: "Ministry of Theology", zones: ["Ministry of Theology"] },
   ],
 };
