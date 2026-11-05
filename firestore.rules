@@ -1,0 +1,87 @@
+rules_version = '2';
+
+// =====================================================================
+// Fruit Consultation · Firestore security rules
+// Only the emails in isAdmin() below can use the coordinator screen.
+// For several people write ['a@gmail.com', 'b@gmail.com'], all in lower case.
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+    function isAdmin() {
+      return signedIn() && myEmail() in ['YOUR_EMAIL@gmail.com'];   // ← coordinator email
+    }
+    function isLeader() {
+      return signedIn() && exists(/databases/$(database)/documents/leaders/$(myEmail()));
+    }
+    function str(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    // Members can only create new requests. They can't read anything.
+    function validNewRequest() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['kind', 'dept', 'zone', 'name', 'fruit', 'relation', 'howMet',
+                               'progress', 'difficulty', 'slots', 'slotNote', 'consent',
+                               'status', 'createdAt'])
+        && d.kind in ['first', 'again']
+        && d.status == 'new'
+        && d.consent == true
+        && d.createdAt == request.time
+        && str(d.dept, 40) && d.dept.size() > 0
+        && str(d.zone, 40) && d.zone.size() > 0
+        && str(d.name, 40) && d.name.size() > 0
+        && str(d.fruit, 40) && d.fruit.size() > 0
+        && str(d.relation, 40)
+        && str(d.howMet, 1500)
+        && str(d.progress, 3000)
+        && str(d.difficulty, 3000)
+        && d.slots is list && d.slots.size() <= 40
+        && str(d.slotNote, 300);
+    }
+
+    // Department and group list (read by the request form)
+    match /public/config {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Group-to-leader table (coordinators only)
+    match /private/{doc} {
+      allow read, write: if isAdmin();
+    }
+
+    // Leaders: the document id is the leader's email. Created when the coordinator saves Groups & leaders.
+    match /leaders/{email} {
+      allow read: if isAdmin() || (signedIn() && email == myEmail());
+      allow write: if isAdmin();
+    }
+
+    match /requests/{id} {
+      allow create: if validNewRequest();
+
+      // Coordinators read everything; leaders read only requests assigned to them.
+      allow read: if isAdmin()
+        || (isLeader() && resource.data.leaderEmail == myEmail());
+
+      // Leaders may change only feedback, follow-ups and status (Consulted onward).
+      allow update: if isAdmin()
+        || (isLeader()
+            && resource.data.leaderEmail == myEmail()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['feedback', 'followUps', 'status', 'history', 'updatedAt'])
+            && request.resource.data.status in ['done', 'follow', 'closed']
+            && str(request.resource.data.feedback, 5000)
+            && request.resource.data.followUps is list
+            && request.resource.data.followUps.size() <= 50);
+
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#DA291C">
+<title>Fruit Consultation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='3' fill='%23DA291C'/%3E%3Cpath fill='%23fff' d='M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z'/%3E%3C/svg%3E">
+<style>
+/* Swiss grid: red field, white paper, black type, one hairline system. */
+:root{
+  --red:#DA291C; --red-deep:#B01E13; --red-tint:#FCECEA;
+  --ink:#141212; --ink-2:#3D3836; --muted:#736B68;
+  --paper:#FFFFFF; --mist:#F6F4F3; --line:#E7E2E0; --line-2:#D4CDCA;
+  --ok:#1F7A4D; --ok-tint:#E6F3EC; --warn:#9A5B00; --warn-tint:#FBF1DE;
+  --kr:"IBM Plex Sans","IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --num:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --r:6px;
+  color-scheme:light;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--kr);font-size:16px;line-height:1.55;color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;overflow-wrap:anywhere}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
+p{margin:0}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--num);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.cross{display:block;flex:none}
+
+/* ---------- buttons & fields ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border-radius:var(--r);border:1.5px solid var(--ink);background:var(--paper);font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn:hover{background:var(--mist)}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+.btn.primary:hover{background:var(--red-deep);border-color:var(--red-deep)}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--mist)}
+.btn.sm{min-height:36px;padding:0 14px;font-size:14px}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.field{display:grid;gap:6px}
+.field>label,.field>.lbl{font-weight:600;font-size:15px}
+.field .hint{font-size:13px;color:var(--muted)}
+.inp{width:100%;min-height:48px;padding:11px 14px;border:1.5px solid var(--line-2);border-radius:var(--r);background:var(--paper);font-size:16px}
+.inp:focus{border-color:var(--ink);outline:none;box-shadow:0 0 0 3px var(--red-tint)}
+textarea.inp{min-height:112px;resize:vertical;line-height:1.6}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink) 50%),linear-gradient(135deg,var(--ink) 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.req{color:var(--red);margin-left:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:42px;padding:0 16px;border:1.5px solid var(--line-2);border-radius:999px;background:var(--paper);cursor:pointer;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--ink);border-radius:var(--r);overflow:hidden}
+.seg button{min-height:64px;border:0;background:var(--paper);cursor:pointer;text-align:left;padding:10px 14px;display:grid;gap:2px}
+.seg button+button{border-left:1.5px solid var(--ink)}
+.seg button b{font-weight:700}
+.seg button span{font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg button[aria-pressed="true"] span{color:#E8E2E0}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:var(--r);font-weight:500;z-index:60;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.toast.err{background:var(--red)}
+.demo-flag{position:absolute;right:calc(10px + env(safe-area-inset-right,0px));top:calc(8px + env(safe-area-inset-top,0px));z-index:50;pointer-events:none;background:var(--paper);border:1.5px solid var(--ink);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600}
+
+/* =====================================================================
+   Request form
+   ===================================================================== */
+#view-apply{min-height:100vh;display:flex;flex-direction:column;background:var(--mist)}
+.a-head{background:var(--red);color:#fff}
+.a-head .in{max-width:620px;margin:0 auto;padding-block:22px 26px;display:grid;gap:14px}
+.a-head .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+.a-head h1{font-size:clamp(30px,8vw,40px);font-weight:700;letter-spacing:-.02em}
+.a-head p{color:#FFE3DF;font-size:15px}
+.progress{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+.progress i{height:4px;background:rgba(255,255,255,.35);border-radius:2px}
+.progress i.on{background:#fff}
+.a-body{flex:1;width:100%;max-width:620px;margin:0 auto;padding-block:20px 120px;display:grid;align-content:start;gap:16px}
+.step-title{display:flex;align-items:baseline;gap:12px;padding:0 2px}
+.step-title .n{font-family:var(--num);font-weight:800;font-size:15px;color:var(--red)}
+.step-title h2{font-size:22px;font-weight:700}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:20px}
+.note{font-size:14px;color:var(--ink-2);background:var(--red-tint);border-radius:var(--r);padding:12px 14px;line-height:1.55}
+.note b{color:var(--red-deep)}
+.a-foot{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:20}
+.a-foot .in{max-width:620px;margin:0 auto;padding-block:12px;display:grid;grid-template-columns:auto 1fr;gap:10px}
+.a-foot .btn.primary{width:100%}
+
+/* time grid */
+.tgrid-wrap{overflow-x:auto}
+.tgrid{display:grid;grid-template-columns:48px repeat(var(--cols),minmax(64px,1fr));gap:4px;min-width:260px}
+.tgrid .h{font-size:13px;font-weight:600;color:var(--muted);display:flex;align-items:center;justify-content:center;min-height:32px}
+.tgrid .d{font-weight:700;display:flex;align-items:center;justify-content:center}
+.tgrid .d.sun{color:var(--red)}
+.slot{min-height:44px;border:1.5px solid var(--line-2);border-radius:var(--r);background:var(--paper);cursor:pointer;font-size:0}
+.slot[aria-pressed="true"]{background:var(--red);border-color:var(--red)}
+.slot[aria-pressed="true"]::after{content:"";display:block;width:14px;height:14px;margin:auto;background:#fff;clip-path:polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)}
+.tgrid.mini{grid-template-columns:40px repeat(var(--cols),1fr);gap:3px;min-width:0}
+.tgrid.mini .h,.tgrid.mini .d{font-size:12px;min-height:20px}
+.tgrid.mini .cell{height:22px;border-radius:3px;background:var(--mist);border:1px solid var(--line)}
+.tgrid.mini .cell.on{background:var(--red);border-color:var(--red)}
+
+.consent{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:15px}
+.consent input{width:22px;height:22px;margin-top:2px;accent-color:var(--red);flex:none}
+
+/* done */
+#view-done{min-height:100vh;background:var(--red);color:#fff;display:flex;align-items:center}
+#view-done .in{max-width:520px;margin:0 auto;display:grid;gap:18px;padding-block:48px;justify-items:start}
+#view-done h1{font-size:clamp(30px,8vw,42px);font-weight:700}
+#view-done p{color:#FFE3DF;font-size:17px}
+#view-done .sum{background:#fff;color:var(--ink);border-radius:10px;padding:16px 18px;width:100%;display:grid;gap:6px;font-size:15px}
+#view-done .sum div{display:grid;grid-template-columns:96px 1fr;gap:8px}
+#view-done .sum span{color:var(--muted)}
+#view-done .btn{border-color:#fff;color:#fff;background:transparent}
+#view-done .btn:hover{background:rgba(255,255,255,.12)}
+
+/* =====================================================================
+   Coordinator and leader (shared)
+   ===================================================================== */
+.desk{min-height:100vh;background:var(--mist);display:flex;flex-direction:column}
+.topbar{background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:30}
+body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:31;background:var(--paper)}
+.topbar .in{max-width:1320px;margin:0 auto;display:flex;align-items:center;gap:16px;min-height:64px;flex-wrap:wrap;padding-block:8px}
+.topbar .title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+.topbar .title small{font-weight:500;color:var(--muted);font-size:13px}
+.tabs{display:flex;gap:2px;margin-left:8px}
+.tab{min-height:40px;padding:0 14px;border:0;background:transparent;border-radius:var(--r);cursor:pointer;font-weight:600;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--mist)}
+.tab[aria-selected="true"]::after{content:"";display:block;height:2px;background:var(--red);margin-top:2px}
+.who{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.wrap{width:100%;max-width:1320px;margin:0 auto;padding-block:20px 48px;display:grid;gap:18px;flex:1;align-content:start}
+
+/* login */
+.login{max-width:420px;margin:8vh auto 0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:32px 28px;display:grid;gap:16px;justify-items:start}
+.login h2{font-size:24px}
+.login p{color:var(--ink-2)}
+.login .msg{font-size:14px;color:var(--red-deep);background:var(--red-tint);padding:10px 12px;border-radius:var(--r);width:100%}
+
+/* pipeline */
+.pipe{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper)}
+.pipe button{border:0;background:var(--paper);padding:14px 16px 12px;text-align:left;cursor:pointer;display:grid;gap:2px;position:relative;min-width:0}
+.pipe button+button{border-left:1px solid var(--line)}
+.pipe button .k{font-family:var(--num);font-weight:800;font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums}
+.pipe button .l{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pipe button.hot .k{color:var(--red)}
+.pipe button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.pipe button[aria-pressed="true"] .l{color:#D9D2CF}
+.pipe button[aria-pressed="true"].hot .k{color:#fff}
+.pipe button::after{content:"→";position:absolute;right:10px;top:14px;color:var(--line-2);font-family:var(--num)}
+.pipe button:last-child::after{content:""}
+
+.board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:18px;align-items:start}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:0}
+.panel-head{display:flex;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.panel-head h3{font-size:16px}
+.panel-head .inp{min-height:40px;padding:8px 12px;font-size:14px;flex:1;min-width:150px}
+.list{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;position:relative}
+.row:hover{background:var(--mist)}
+.row[aria-current="true"]{background:var(--red-tint)}
+.row[aria-current="true"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+.row .nm{font-weight:700}
+.row .nm small{font-weight:500;color:var(--muted);margin-left:6px}
+.row .meta{grid-column:1/-1;font-size:13px;color:var(--muted);display:flex;gap:6px 12px;flex-wrap:wrap}
+.row .fr{font-size:14px;color:var(--ink-2)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted);display:grid;gap:8px;justify-items:center}
+
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st-new{background:var(--red);color:#fff}
+.st-new::before{background:#fff}
+.st-sched{background:var(--warn-tint);color:var(--warn)}
+.st-set{background:#fff;color:var(--ink);border-color:var(--ink)}
+.st-done{background:var(--ink);color:#fff}
+.st-follow{background:var(--ok-tint);color:var(--ok)}
+.st-closed{background:var(--mist);color:var(--muted);border-color:var(--line)}
+.tag{display:inline-flex;height:22px;align-items:center;padding:0 8px;border-radius:4px;font-size:12px;font-weight:700;background:var(--red-tint);color:var(--red-deep)}
+
+/* detail */
+.detail{position:sticky;top:84px}
+.d-head{padding:20px 22px 16px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.d-head h2{font-size:24px;font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.d-head .sub{font-size:14px;color:var(--muted);display:flex;gap:6px 14px;flex-wrap:wrap}
+.d-body{padding:6px 22px 22px;display:grid}
+.sec{padding:16px 0;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.sec:last-child{border-bottom:0}
+.sec h4{margin:0;font-size:12px;font-family:var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--red);font-weight:700}
+.sec h4 span{font-family:var(--kr);letter-spacing:0;color:var(--ink);font-size:15px;margin-left:6px;text-transform:none}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:8px 12px;font-size:15px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;white-space:pre-wrap}
+.prose{white-space:pre-wrap;font-size:15px;line-height:1.7}
+.prose.empty-t{color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.manage{background:var(--mist);border-radius:8px;padding:16px;display:grid;gap:14px}
+.stbar{display:flex;flex-wrap:wrap;gap:6px}
+.stbar button{min-height:38px;padding:0 12px;border:1.5px solid var(--line-2);background:var(--paper);border-radius:var(--r);cursor:pointer;font-size:14px;font-weight:600}
+.stbar button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.actions .spacer{flex:1}
+.prev{display:grid;gap:8px}
+.prev-item{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:6px;font-size:14px}
+.prev-item .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fu{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.fu li{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.fu li:first-child{border-top:0}
+.fu time{font-family:var(--num);font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--red-tint);padding:10px 12px;border-radius:var(--r);font-size:14px}
+.back{display:none}
+
+/* settings */
+.set-grid{display:grid;gap:14px}
+.dept{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.dept-h{display:flex;gap:10px;align-items:center;padding:12px 14px;background:var(--mist);border-bottom:1px solid var(--line)}
+.dept-h .inp{max-width:260px;font-weight:700;min-height:42px}
+.zone{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.4fr) auto;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center}
+.zone .inp{min-height:42px;font-size:15px;padding:8px 12px}
+.zone-h{font-size:12px;color:var(--muted);font-weight:600;padding:8px 14px 0;border:0}
+.icon-btn{width:40px;height:40px;border:0;background:transparent;border-radius:var(--r);cursor:pointer;color:var(--muted);font-size:20px;line-height:1}
+.icon-btn:hover{background:var(--red-tint);color:var(--red)}
+.set-foot{position:sticky;bottom:0;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.set-foot p{font-size:14px;color:var(--muted);flex:1;min-width:200px}
+
+/* poster tab preview */
+.poster-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.poster-tools code{background:var(--paper);border:1px solid var(--line);padding:8px 12px;border-radius:var(--r);font-size:13px;word-break:break-all}
+
+/* =====================================================================
+   QR QR poster (print)
+   ===================================================================== */
+.poster{width:100%;max-width:600px;margin:0 auto;background:#fff;color:var(--ink);border-radius:12px;overflow:hidden;box-shadow:0 1px 0 var(--line),0 16px 40px rgba(40,10,5,.10);container-type:inline-size}
+.poster-frame{container-type:inline-size;max-width:600px;margin:0 auto}
+.poster img{display:block;width:100%;aspect-ratio:2/1;object-fit:cover;object-position:50% 62%;background:#F1EEE9}
+.poster .qrrow{display:flex;gap:5.5cqw;align-items:center;padding:5cqw 6cqw;border-top:.5cqw solid var(--red)}
+.poster .qrrow canvas{width:28cqw;height:auto;image-rendering:pixelated;flex:none}
+.poster .qrrow b{display:block;font-size:5cqw;margin-bottom:1.6cqw;letter-spacing:-.01em}
+.poster .qrrow ol{margin:0;padding-left:1.2em;font-size:3.2cqw;color:var(--ink-2);display:grid;gap:.8cqw;line-height:1.4}
+#view-poster{background:var(--mist);min-height:100vh;padding-block:24px}
+#view-poster .bar{max-width:600px;margin:0 auto 16px;display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+
+@media print{
+  @page{size:A4;margin:0}
+  body *{visibility:hidden}
+  .poster,.poster *{visibility:visible}
+  .poster-frame{max-width:none}
+  .poster{position:fixed;left:15mm;top:50%;transform:translateY(-50%);width:180mm;max-width:none;box-shadow:none;border:.3mm solid #E7E2E0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+/* =====================================================================
+   Narrow screens
+   ===================================================================== */
+@media (max-width:980px){
+  .board{grid-template-columns:1fr}
+  .detail{position:fixed;inset:0;z-index:40;border-radius:0;border:0;overflow-y:auto;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .detail.closed{display:none}
+  .back{display:inline-flex}
+  .pipe{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .pipe button:nth-child(4){border-left:0}
+  .pipe button:nth-child(n+4){border-top:1px solid var(--line)}
+  .pipe button::after{content:""}
+}
+@media (max-width:640px){
+  .tabs{order:3;width:100%;margin-left:0;overflow-x:auto}
+  .who{margin-left:auto}
+  .zone{grid-template-columns:1fr 1fr;}
+  .zone .z-email{grid-column:1/2}
+  .grid2{grid-template-columns:1fr}
+  .kv{grid-template-columns:96px 1fr}
+  .d-head,.d-body{padding-left:16px;padding-right:16px}
+  .pipe button .k{font-size:24px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .slot,.chip,.btn,.row{transition:background-color .12s,border-color .12s,color .12s}
+  .fade{animation:fade .28s ease-out}
+  @keyframes fade{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cross" viewBox="0 0 32 32"><rect width="32" height="32" rx="3" fill="#DA291C"/><path fill="#fff" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/></symbol>
+  <symbol id="i-cross-w" viewBox="0 0 32 32"><rect width="32" height="32" rx="3" fill="#fff"/><path fill="#DA291C" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/></symbol>
+</svg>
+
+<!-- ================= Request form ================= -->
+<main id="view-apply" hidden>
+  <header class="a-head">
+    <div class="in gut">
+      <div class="brand"><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
+      <h1>Fruit Consultation</h1>
+      <p id="a-sub">Is there someone you want to share the Word with? Let's talk it through together. Takes about 3 minutes.</p>
+      <div class="progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </header>
+
+  <form id="a-form" class="a-body gut" novalidate autocomplete="off">
+    <!-- 1 -->
+    <section class="step fade" data-step="1">
+      <div class="step-title"><span class="n">1 / 4</span><h2>About you</h2></div>
+      <div class="card">
+        <div class="field">
+          <span class="lbl">Request type</span>
+          <div class="seg" role="group" aria-label="Request type">
+            <button type="button" id="k-first" data-kind="first" aria-pressed="true"><b>First request</b><span>First consultation for this fruit</span></button>
+            <button type="button" id="k-again" data-kind="again" aria-pressed="false"><b>Follow-up request</b><span>I need another consultation</span></button>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="f-dept">Department<span class="req">*</span></label><select id="f-dept" class="inp" required></select></div>
+          <div class="field"><label for="f-zone">Group<span class="req">*</span></label><select id="f-zone" class="inp" required></select></div>
+        </div>
+        <div class="field"><label for="f-name">Your name<span class="req">*</span></label><input id="f-name" class="inp" maxlength="40" required placeholder="Anna Keller"></div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="step fade" data-step="2" hidden>
+      <div class="step-title"><span class="n">2 / 4</span><h2>Your fruit</h2></div>
+      <div class="card">
+        <p class="note">Please don't write their full name. Use <b>initials or a nickname</b>, e.g. L.M., Colleague A</p>
+        <div class="field"><label for="f-fruit">Fruit (initials or nickname)<span class="req">*</span></label><input id="f-fruit" class="inp" maxlength="40" required placeholder="L.M."></div>
+        <div class="field">
+          <span class="lbl">Your relationship<span class="req">*</span></span>
+          <div class="chips" id="f-rel-chips" role="group" aria-label="Your relationship"></div>
+          <input id="f-rel-etc" class="inp" maxlength="40" placeholder="Describe the relationship" hidden>
+        </div>
+        <div class="field js-first-only">
+          <label for="f-how">How did you get connected?</label>
+          <span class="hint">How you met, how long you've known each other</span>
+          <textarea id="f-how" class="inp" maxlength="1500" placeholder="e.g. We've worked on the same team for two years and often have lunch together."></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="step fade" data-step="3" hidden>
+      <div class="step-title"><span class="n">3 / 4</span><h2>Where things stand</h2></div>
+      <div class="card">
+        <div class="field">
+          <label for="f-prog" id="f-prog-l">What has happened so far?<span class="req">*</span></label>
+          <span class="hint" id="f-prog-h">Conversations you've had, how they responded, their interests</span>
+          <textarea id="f-prog" class="inp" maxlength="3000" required></textarea>
+        </div>
+        <div class="field">
+          <label for="f-diff">What are you finding difficult?<span class="req">*</span></label>
+          <span class="hint">Where you feel stuck or unsure</span>
+          <textarea id="f-diff" class="inp" maxlength="3000" required></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="step fade" data-step="4" hidden>
+      <div class="step-title"><span class="n">4 / 4</span><h2>When can you meet?</h2></div>
+      <div class="card">
+        <div class="field">
+          <span class="lbl">Tap every time that works for you<span class="req">*</span></span>
+          <div class="tgrid-wrap"><div class="tgrid" id="f-grid"></div></div>
+        </div>
+        <div class="field"><label for="f-slotnote">Note on timing</label><input id="f-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
+        <label class="consent"><input type="checkbox" id="f-consent"><span>I agree that the consultation team (the coordinator and my group leader) may read what I've written. Records are deleted once the consultation is finished.</span></label>
+      </div>
+    </section>
+  </form>
+
+  <div class="a-foot"><div class="in gut">
+    <button type="button" class="btn" id="a-prev">Back</button>
+    <button type="button" class="btn primary" id="a-next">Next</button>
+  </div></div>
+</main>
+
+<!-- ================= Submitted ================= -->
+<main id="view-done" hidden>
+  <div class="in gut">
+    <svg class="cross" width="64" height="64"><use href="#i-cross-w"/></svg>
+    <h1>Request received</h1>
+    <p>The coordinator will get in touch based on the times you chose. Your group leader will join the consultation too.</p>
+    <div class="sum" id="d-sum"></div>
+    <button class="btn" id="d-again" type="button">Submit another fruit</button>
+  </div>
+</main>
+
+<!-- ================= Coordinator ================= -->
+<div id="view-admin" class="desk" hidden>
+  <header class="topbar"><div class="in gut">
+    <div class="title"><svg class="cross" width="28" height="28"><use href="#i-cross"/></svg>Fruit Consultation <small>Coordinator</small></div>
+    <nav class="tabs" role="tablist" id="ad-tabs" hidden>
+      <button class="tab" role="tab" data-tab="board" aria-selected="true">Requests</button>
+      <button class="tab" role="tab" data-tab="settings" aria-selected="false">Groups &amp; leaders</button>
+      <button class="tab" role="tab" data-tab="poster" aria-selected="false">QR poster</button>
+    </nav>
+    <div class="who"><span class="js-who"></span><button class="btn sm ghost js-signout" hidden>Sign out</button></div>
+  </div></header>
+
+  <div class="login gut js-login" hidden>
+    <svg class="cross" width="44" height="44"><use href="#i-cross"/></svg>
+    <h2>Coordinator sign-in</h2>
+    <p>Sign in with the Google account listed as a coordinator in the security rules.</p>
+    <p class="msg js-login-msg" hidden></p>
+    <button class="btn primary js-signin">Sign in with Google</button>
+  </div>
+
+  <div class="wrap gut" id="ad-main" hidden>
+    <!-- Requests -->
+    <section data-pane="board" class="set-grid">
+      <div class="pipe" id="ad-pipe"></div>
+      <div class="board">
+        <div class="panel">
+          <div class="panel-head">
+            <h3 id="ad-list-title">All requests</h3>
+            <input class="inp" id="ad-q" type="search" placeholder="Search name, fruit, group">
+            <button class="btn sm" id="ad-csv" type="button">Download CSV</button>
+          </div>
+          <ul class="list" id="ad-list"></ul>
+        </div>
+        <aside class="panel detail closed" id="ad-detail" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <!-- Groups & leaders -->
+    <section data-pane="settings" class="set-grid" hidden>
+      <div class="panel" style="padding:18px 20px;display:grid;gap:6px">
+        <h3 style="font-size:18px">Departments · groups · leaders</h3>
+        <p style="color:var(--ink-2);font-size:15px">For each group, enter the name and Google email of its direct leader (the group leader or the person who will give feedback). New requests suggest this leader automatically, and leaders sign in with that email to see <b>only their own group's requests</b>.</p>
+      </div>
+      <div id="st-depts" class="set-grid"></div>
+      <div><button class="btn sm" id="st-add-dept" type="button">+ Add department</button></div>
+      <div class="set-foot">
+        <p id="st-msg">Changes appear on the request form after you save.</p>
+        <button class="btn primary" id="st-save" type="button">Save</button>
+      </div>
+    </section>
+
+    <!-- QR poster -->
+    <section data-pane="poster" class="set-grid" hidden>
+      <div class="poster-tools">
+        <code id="ps-url"></code>
+        <button class="btn sm" id="ps-copy" type="button">Copy link</button>
+        <a class="btn sm primary" id="ps-open" href="#poster" target="_blank" rel="noopener">Open for printing</a>
+      </div>
+      <div id="ps-holder"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ================= Leader ================= -->
+<div id="view-leader" class="desk" hidden>
+  <header class="topbar"><div class="in gut">
+    <div class="title"><svg class="cross" width="28" height="28"><use href="#i-cross"/></svg>Fruit Consultation <small>Leader</small></div>
+    <label class="js-demo-leader" hidden style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)">Example leader
+      <select id="ld-demo" class="inp" style="min-height:36px;padding:4px 36px 4px 10px;font-size:14px;width:auto"></select></label>
+    <div class="who"><span class="js-who"></span><button class="btn sm ghost js-signout" hidden>Sign out</button></div>
+  </div></header>
+
+  <div class="login gut js-login" hidden>
+    <svg class="cross" width="44" height="44"><use href="#i-cross"/></svg>
+    <h2>Leader sign-in</h2>
+    <p>Sign in with the Google account the coordinator registered for you. You'll see only the requests assigned to you.</p>
+    <p class="msg js-login-msg" hidden></p>
+    <button class="btn primary js-signin">Sign in with Google</button>
+  </div>
+
+  <div class="wrap gut" id="ld-main" hidden>
+    <div class="pipe" id="ld-pipe"></div>
+    <div class="board">
+      <div class="panel">
+        <div class="panel-head"><h3 id="ld-list-title">Assigned to me</h3></div>
+        <ul class="list" id="ld-list"></ul>
+      </div>
+      <aside class="panel detail closed" id="ld-detail" aria-live="polite"></aside>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Poster only ================= -->
+<div id="view-poster" class="gut" hidden>
+  <div class="bar"><b>QR poster · A4</b><button class="btn sm primary" type="button" id="pv-print">Print</button></div>
+  <div id="pv-holder"></div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<div class="demo-flag" id="demo-flag" hidden>Demo mode</div>
+
+<script src="config.js"></script>
+<script src="assets/qrcode.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
