@@ -5,14 +5,14 @@
 window.APP_CONFIG = {
   // Firebase connection. Leave it as null until you connect (the page opens in demo mode).
   // To connect, delete null and paste the { ... } you copied from the Firebase console.
-     firebase: {
-     apiKey: "AIza.....",
-     authDomain: "......firebaseapp.com",
-     projectId: "......",
-     storageBucket: "......",
-     messagingSenderId: "......",
-     appId: "......"
-   },
+  firebase: {
+    apiKey: "AIzaSyDUETVEZfDzOIRgkgN6frDdyLRjgSeGCrU",
+    authDomain: "fruit-consultation.firebaseapp.com",
+    projectId: "fruit-consultation",
+    storageBucket: "fruit-consultation.firebasestorage.app",
+    messagingSenderId: "753415680124",
+    appId: "1:753415680124:web:21d4ab9b5fc4637c1399f9",
+  },
 
   // Church name (shown at the top of the form and on the QR poster)
   churchName: "Swiss Church",

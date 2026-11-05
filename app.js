@@ -217,11 +217,14 @@ async function initBackend() {
   $("#demo-flag").hidden = false;
 }
 
-async function loadDepartments() {
+async function loadDepartments(timeoutMs = 6000) {
   try {
-    const c = await backend.getConfig();
+    const c = await Promise.race([
+      backend.getConfig(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), timeoutMs)),
+    ]);
     if (c && Array.isArray(c.departments) && c.departments.length) return c.departments;
-  } catch (e) { console.warn(e); }
+  } catch (e) { console.warn("Using departments from config.js:", e.message || e); }
   return CFG.departments || [];
 }
 
@@ -377,25 +380,33 @@ const SUB_AGAIN = "Already had a consultation and need another? We'll pick up fr
 
 async function startApply() {
   $("#view-apply").hidden = false;
-  const depts = await loadDepartments();
   const prof = store.get("fruit-talk-profile", {});
   let step = 1, kind = "first", relation = "";
   const slots = new Set();
 
-  // Department and group
+  // Department and group: show the list from config.js right away,
+  // then swap in the coordinator's saved list when it arrives.
+  let depts = CFG.departments || [];
   const dSel = $("#f-dept"), zSel = $("#f-zone");
-  dSel.innerHTML = `<option value="">Choose…</option>` + depts.map((d) => `<option>${esc(d.name)}</option>`).join("");
   const fillZones = () => {
     const d = depts.find((x) => x.name === dSel.value);
     const zs = d ? d.zones : [];
+    const keep = zSel.value;
     zSel.innerHTML = `<option value="">${d ? "Choose…" : "Choose a department first"}</option>` + zs.map((z) => `<option>${esc(z)}</option>`).join("");
     zSel.disabled = !d;
-    if (zs.length === 1) zSel.value = zs[0];
+    if (zs.includes(keep)) zSel.value = keep;
+    else if (zs.length === 1) zSel.value = zs[0];
+  };
+  const fillDepts = () => {
+    const keep = dSel.value || prof.dept || "";
+    dSel.innerHTML = `<option value="">Choose…</option>` + depts.map((d) => `<option>${esc(d.name)}</option>`).join("");
+    if (depts.some((d) => d.name === keep)) dSel.value = keep;
+    fillZones();
   };
   dSel.onchange = fillZones;
-  if (prof.dept && depts.some((d) => d.name === prof.dept)) dSel.value = prof.dept;
-  fillZones();
-  if (prof.zone) zSel.value = prof.zone;
+  fillDepts();
+  if (prof.zone) { zSel.value = prof.zone; }
+  loadDepartments().then((d) => { if (d && d.length) { depts = d; fillDepts(); } });
   if (prof.name) $("#f-name").value = prof.name;
 
   // Request type
