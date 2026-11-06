@@ -393,8 +393,10 @@ function downloadCSV(name, rows) {
 // =====================================================================
 // Request form
 // =====================================================================
-const SUB_FIRST = "Is there someone you want to share the Word with? Let's talk it through together. Takes about 5 minutes.";
-const SUB_AGAIN = "Already had a consultation and need another? We'll pick up from your earlier record.";
+const SUB_FIRST = "Is there someone on your heart? Let's talk it through together.";
+const SUB_AGAIN = "Need to talk again? We'll pick up from your earlier record.";
+const HINT_FIRST = "Because you love your friends and family · About 5 minutes";
+const HINT_AGAIN = "Let's keep walking together";
 
 async function startApply() {
   $("#view-apply").hidden = false;
@@ -434,8 +436,9 @@ async function startApply() {
     $$(".js-first-only").forEach((el) => (el.hidden = k === "again"));
     if (typeof syncHist === "function") syncHist(); // defined below; runs after setup
     $("#f-prog-l").innerHTML = (k === "again" ? "What has happened since the last consultation?" : "What has happened so far?") + '<span class="req">*</span>';
-    $("#f-prog-h").textContent = k === "again" ? "What you tried from the feedback, and how they responded" : "Please describe it in as much detail as you can: conversations, reactions, interests";
+    $("#f-prog-h").textContent = k === "again" ? "What you tried from the feedback, and how they responded" : "Every conversation matters. Please write in detail.";
     $("#a-sub").textContent = k === "again" ? SUB_AGAIN : SUB_FIRST;
+    $("#a-sub-hint").textContent = k === "again" ? HINT_AGAIN : HINT_FIRST;
   };
   $$("[data-kind]").forEach((b) => (b.onclick = () => setKind(b.dataset.kind)));
 
@@ -464,7 +467,7 @@ async function startApply() {
     $$(".js-scj-yes").forEach((el) => (el.hidden = !(first && hist && scj === "yes")));
     if (first) {
       $("#f-prog-l").innerHTML = (before ? "Please describe how you progressed this fruit in detail" : "What has happened so far?") + '<span class="req">*</span>';
-      $("#f-prog-h").textContent = before ? "What you did, how they responded, and where it stopped" : "Please describe it in as much detail as you can: conversations, reactions, interests";
+      $("#f-prog-h").textContent = before ? "What you did, how they responded, and where it stopped" : "Every conversation matters. Please write in detail.";
     }
   };
   $$("[data-hist]").forEach((b) => (b.onclick = () => { hist = b.dataset.hist; syncHist(); }));
@@ -895,7 +898,7 @@ function posterHTML() {
   <div class="poster-frame"><div class="poster">
     <img src="assets/friends.jpg" alt="Four friendly characters hugging a smiling lemon">
     <div class="qrrow"><canvas width="10" height="10" aria-label="QR code for the request form"></canvas>
-      <div><b>Fruit Consultation</b><ol><li>Scan the QR with your phone camera</li><li>Tell us about your fruit and when you're free</li><li>The coordinator will get in touch</li></ol></div></div>
+      <div><b>Fruit Consultation</b><span class="tagline">One soul is more precious than the whole world.</span><ol><li>Scan the QR with your phone camera</li><li>Tell us about your fruit and when you're free</li><li>The coordinator will get in touch</li></ol></div></div>
   </div></div>`;
 }
 
