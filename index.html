@@ -356,13 +356,13 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
       <div class="step-title"><span class="n">3 / 4</span><h2>Where things stand</h2></div>
       <div class="card">
         <div class="field js-first-only">
-          <span class="lbl">Has anyone worked with this fruit before?<span class="req">*</span></span>
-          <div class="seg" role="group" aria-label="Has anyone worked with this fruit before?">
-            <button type="button" data-hist="new" aria-pressed="false"><b>New fruit</b><span>No one has worked with them yet</span></button>
-            <button type="button" data-hist="before" aria-pressed="false"><b>Worked with before</b><span>Someone has approached them</span></button>
+          <span class="lbl">Have you progressed this fruit before?<span class="req">*</span></span>
+          <div class="seg" role="group" aria-label="Have you progressed this fruit before?">
+            <button type="button" data-hist="new" aria-pressed="false"><b>New fruit</b><span>Not progressed yet</span></button>
+            <button type="button" data-hist="before" aria-pressed="false"><b>Progressed before</b><span>We have progressed this fruit</span></button>
           </div>
         </div>
-        <div class="field js-before" hidden>
+        <div class="field js-picked" hidden>
           <span class="lbl">Do they know about Shincheonji?<span class="req">*</span></span>
           <div class="chips" id="f-scj" role="group" aria-label="Do they know about Shincheonji?"></div>
         </div>
@@ -370,7 +370,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <label for="f-scj-how">How did they find out?</label>
           <textarea id="f-scj-how" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Read about it online after a Bible study"></textarea>
         </div>
-        <div class="field js-before" hidden><label for="f-leaf">Who was the leaf (잎사귀)?</label><input id="f-leaf" class="inp" maxlength="80" placeholder="Name of the person who joined before"></div>
+        <div class="field js-before" hidden><label for="f-leaf">Who was the leaf and BBT?</label><input id="f-leaf" class="inp" maxlength="80" placeholder="e.g. Leaf: Anna K. · BBT: Daniel L."></div>
         <div class="field js-before" hidden>
           <label for="f-now">How is your relationship now?</label>
           <textarea id="f-now" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Still friendly, we meet once a month"></textarea>

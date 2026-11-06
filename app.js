@@ -17,7 +17,7 @@ const RELATIONS = CFG.relations || ["Family", "Friend", "Work", "School", "Neigh
 const OTHER = "Other";
 const FAITH = ["Attends a church", "Christian, not attending", "Other religion", "No religion", "Not sure"];
 const SCJ = [["yes", "Yes, they know"], ["no", "No"], ["unsure", "Not sure"]];
-const HIST = { new: "New fruit", before: "Worked with before" };
+const HIST = { new: "New fruit", before: "Progressed before" };
 
 const STATUS = [
   { id: "new", l: "Received" },
@@ -281,16 +281,15 @@ function requestSections(r, list) {
   ${r.prior ? `<div class="sec">
     <h4>History</h4>
     <dl class="kv">
-      <dt>Status</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>
-      ${r.prior === "before" ? `
+      <dt>Progressed</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>
       <dt>Knows SCJ</dt><dd>${esc((SCJ.find((x) => x[0] === r.knowsScj) || [, "–"])[1])}</dd>
       ${r.scjHow ? `<dt>How they knew</dt><dd>${esc(r.scjHow)}</dd>` : ""}
-      ${r.leaf ? `<dt>Leaf (잎사귀)</dt><dd>${esc(r.leaf)}</dd>` : ""}
-      ${r.relNow ? `<dt>Relationship now</dt><dd>${esc(r.relNow)}</dd>` : ""}` : ""}
+      ${r.leaf ? `<dt>Leaf &amp; BBT</dt><dd>${esc(r.leaf)}</dd>` : ""}
+      ${r.relNow ? `<dt>Relationship now</dt><dd>${esc(r.relNow)}</dd>` : ""}
     </dl>
   </div>` : ""}
   <div class="sec">
-    <h4>${r.kind === "again" ? "Since last consultation" : "Progress so far"}</h4>
+    <h4>${r.kind === "again" ? "Since last consultation" : r.prior === "before" ? "How it was progressed" : "Progress so far"}</h4>
     <p class="prose">${esc(r.progress || "–")}</p>
   </div>
   <div class="sec">
@@ -459,9 +458,14 @@ async function startApply() {
   $$("button", faithEl).forEach((c) => (c.onclick = () => { faith = c.dataset.v; pickIn(faithEl, faith); }));
   const syncHist = () => {
     $$("[data-hist]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.hist === hist)));
-    const before = kind === "first" && hist === "before";
+    const first = kind === "first", before = first && hist === "before";
+    $$(".js-picked").forEach((el) => (el.hidden = !(first && hist)));
     $$(".js-before").forEach((el) => (el.hidden = !before));
-    $$(".js-scj-yes").forEach((el) => (el.hidden = !(before && scj === "yes")));
+    $$(".js-scj-yes").forEach((el) => (el.hidden = !(first && hist && scj === "yes")));
+    if (first) {
+      $("#f-prog-l").innerHTML = (before ? "Please describe how you progressed this fruit in detail" : "What has happened so far?") + '<span class="req">*</span>';
+      $("#f-prog-h").textContent = before ? "What you did, how they responded, and where it stopped" : "Please describe it in as much detail as you can: conversations, reactions, interests";
+    }
   };
   $$("[data-hist]").forEach((b) => (b.onclick = () => { hist = b.dataset.hist; syncHist(); }));
   $$("button", scjEl).forEach((c) => (c.onclick = () => { scj = c.dataset.v; pickIn(scjEl, scj); syncHist(); }));
@@ -503,7 +507,7 @@ async function startApply() {
     }
     if (n === 3) {
       if (kind === "first" && !hist) { toast("Choose New fruit or Worked with before", true); return false; }
-      if (kind === "first" && hist === "before" && !scj) { toast("Choose whether they know about Shincheonji", true); return false; }
+      if (kind === "first" && !scj) { toast("Choose whether they know about Shincheonji", true); return false; }
       if (!clean($("#f-prog").value)) return need($("#f-prog"), "Tell us what has happened so far");
       if (!clean($("#f-diff").value)) return need($("#f-diff"), "Tell us what you're finding difficult");
     }
@@ -530,8 +534,8 @@ async function startApply() {
       home: first ? clean($("#f-home").value).slice(0, 60) : "",
       faith: first ? faith : "",
       prior: first ? hist : "",
-      knowsScj: before ? scj : "",
-      scjHow: before && scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
+      knowsScj: first ? scj : "",
+      scjHow: first && scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
       leaf: before ? clean($("#f-leaf").value).slice(0, 80) : "",
       relNow: before ? clean($("#f-now").value).slice(0, 1500) : "",
       progress: clean($("#f-prog").value).slice(0, 4000),
@@ -553,7 +557,8 @@ async function startApply() {
       window.scrollTo({ top: 0 });
     } catch (e) {
       console.error(e);
-      toast("Couldn't send. Check your internet connection and tap again.", true);
+      const code = String((e && (e.code || e.message)) || "unknown");
+      toast(code.includes("permission") ? "Couldn't send (permission-denied). The coordinator needs to update the Firebase rules." : `Couldn't send (${code}). Check your connection and tap again.`, true);
     } finally {
       nextBtn.disabled = false; nextBtn.textContent = "Send request";
     }
@@ -691,7 +696,7 @@ async function initAdmin() {
 
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; render(); });
   $("#ad-csv").onclick = () => {
-    const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Occupation", "Age", "Lives in", "Believer", "History", "Knows SCJ", "How they knew", "Leaf", "Relationship now", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
+    const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Occupation", "Age", "Lives in", "Believer", "History", "Knows SCJ", "How they knew", "Leaf & BBT", "Relationship now", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
     const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.job, r.age, r.home, r.faith, HIST[r.prior] || "", (SCJ.find((x) => x[0] === r.knowsScj) || [, ""])[1], r.scjHow, r.leaf, r.relNow, r.progress, r.difficulty,
       slotsText(r.slots), r.slotNote, SL[r.status], fmtDT(r.scheduledAt), r.place, r.leaderName, r.adminNote, r.feedback,
       (r.followUps || []).map((f) => `${fmtDate(f.at)}: ${f.text}`).join(" / ")]);
