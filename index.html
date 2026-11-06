@@ -299,7 +299,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <div class="in gut">
       <div class="brand"><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
       <h1>Fruit Consultation</h1>
-      <p id="a-sub">Is there someone you want to share the Word with? Let's talk it through together. Takes about 3 minutes.</p>
+      <p id="a-sub">Is there someone you want to share the Word with? Let's talk it through together. Takes about 5 minutes.</p>
       <div class="progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     </div>
   </header>
@@ -328,8 +328,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <section class="step fade" data-step="2" hidden>
       <div class="step-title"><span class="n">2 / 4</span><h2>Your fruit</h2></div>
       <div class="card">
-        <p class="note">Please don't write their full name. Use <b>initials or a nickname</b>, e.g. L.M., Colleague A</p>
-        <div class="field"><label for="f-fruit">Fruit (initials or nickname)<span class="req">*</span></label><input id="f-fruit" class="inp" maxlength="40" required placeholder="L.M."></div>
+        <div class="field"><label for="f-fruit">Fruit's name<span class="req">*</span></label><span class="hint">First name or initials is enough, e.g. Lukas M. or L.M.</span><input id="f-fruit" class="inp" maxlength="40" required placeholder="Lukas M."></div>
         <div class="field">
           <span class="lbl">Your relationship<span class="req">*</span></span>
           <div class="chips" id="f-rel-chips" role="group" aria-label="Your relationship"></div>
@@ -340,6 +339,15 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <span class="hint">How you met, how long you've known each other</span>
           <textarea id="f-how" class="inp" maxlength="1500" placeholder="e.g. We've worked on the same team for two years and often have lunch together."></textarea>
         </div>
+        <div class="grid2 js-first-only">
+          <div class="field"><label for="f-job">Occupation</label><input id="f-job" class="inp" maxlength="60" placeholder="e.g. Nurse, student"></div>
+          <div class="field"><label for="f-age">Age</label><input id="f-age" class="inp" maxlength="12" inputmode="numeric" placeholder="e.g. 28 or about 30"></div>
+        </div>
+        <div class="field js-first-only"><label for="f-home">Where they live</label><input id="f-home" class="inp" maxlength="60" placeholder="e.g. Zurich, Kreis 4"></div>
+        <div class="field js-first-only">
+          <span class="lbl">Are they a believer?<span class="req">*</span></span>
+          <div class="chips" id="f-faith" role="group" aria-label="Are they a believer?"></div>
+        </div>
       </div>
     </section>
 
@@ -347,13 +355,33 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <section class="step fade" data-step="3" hidden>
       <div class="step-title"><span class="n">3 / 4</span><h2>Where things stand</h2></div>
       <div class="card">
-        <div class="field">
-          <label for="f-prog" id="f-prog-l">What has happened so far?<span class="req">*</span></label>
-          <span class="hint" id="f-prog-h">Conversations you've had, how they responded, their interests</span>
-          <textarea id="f-prog" class="inp" maxlength="3000" required></textarea>
+        <div class="field js-first-only">
+          <span class="lbl">Has anyone worked with this fruit before?<span class="req">*</span></span>
+          <div class="seg" role="group" aria-label="Has anyone worked with this fruit before?">
+            <button type="button" data-hist="new" aria-pressed="false"><b>New fruit</b><span>No one has worked with them yet</span></button>
+            <button type="button" data-hist="before" aria-pressed="false"><b>Worked with before</b><span>Someone has approached them</span></button>
+          </div>
+        </div>
+        <div class="field js-before" hidden>
+          <span class="lbl">Do they know about Shincheonji?<span class="req">*</span></span>
+          <div class="chips" id="f-scj" role="group" aria-label="Do they know about Shincheonji?"></div>
+        </div>
+        <div class="field js-scj-yes" hidden>
+          <label for="f-scj-how">How did they find out?</label>
+          <textarea id="f-scj-how" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Read about it online after a Bible study"></textarea>
+        </div>
+        <div class="field js-before" hidden><label for="f-leaf">Who was the leaf (잎사귀)?</label><input id="f-leaf" class="inp" maxlength="80" placeholder="Name of the person who joined before"></div>
+        <div class="field js-before" hidden>
+          <label for="f-now">How is your relationship now?</label>
+          <textarea id="f-now" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Still friendly, we meet once a month"></textarea>
         </div>
         <div class="field">
-          <label for="f-diff">What are you finding difficult?<span class="req">*</span></label>
+          <label for="f-prog" id="f-prog-l">What has happened so far?<span class="req">*</span></label>
+          <span class="hint" id="f-prog-h">Please describe it in as much detail as you can</span>
+          <textarea id="f-prog" class="inp" maxlength="4000" required style="min-height:150px"></textarea>
+        </div>
+        <div class="field">
+          <label for="f-diff">Any difficulties in moving forward?<span class="req">*</span></label>
           <span class="hint">Where you feel stuck or unsure</span>
           <textarea id="f-diff" class="inp" maxlength="3000" required></textarea>
         </div>

@@ -15,6 +15,9 @@ const DAYS = CFG.days || ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const PERIODS = CFG.periods || ["Morning", "Afternoon", "Evening"];
 const RELATIONS = CFG.relations || ["Family", "Friend", "Work", "School", "Neighbour"];
 const OTHER = "Other";
+const FAITH = ["Attends a church", "Christian, not attending", "Other religion", "No religion", "Not sure"];
+const SCJ = [["yes", "Yes, they know"], ["no", "No"], ["unsure", "Not sure"]];
+const HIST = { new: "New fruit", before: "Worked with before" };
 
 const STATUS = [
   { id: "new", l: "Received" },
@@ -143,12 +146,13 @@ function makeDemo() {
       "Women's|Group 1": { name: "Example leader C", email: "leader.c@example.com" },
     },
     requests: [
-      { id: "ex1", kind: "first", dept: "Youth", zone: "Zurich Team 1", name: "Example: Sarah P.", fruit: "K.S.", relation: "Work",
+      { id: "ex1", kind: "first", dept: "Youth", zone: "Zurich Team 1", job: "Marketing assistant", age: "29", home: "Zurich, Kreis 3", faith: "Christian, not attending", history: "new", name: "Example: Sarah P.", fruit: "K.S.", relation: "Work",
         howMet: "We've been on the same team for two years and often have lunch together.",
         progress: "She keeps talking about burnout, so we've gone for two walks after work. She went to Catholic church as a child.",
         difficulty: "When I bring up faith she laughs it off. I don't know what topic to use for our next meeting.",
         slots: ["Sun-Afternoon", "Wed-Evening", "Fri-Evening"], slotNote: "Wednesdays only after 7 pm", consent: true, status: "new", createdAt: now - 2 * H },
-      { id: "ex2", kind: "first", dept: "Youth", zone: "Zurich Team 2", name: "Example: Daniel L.", fruit: "Lukas M.", relation: "Friend",
+      { id: "ex2", kind: "first", dept: "Youth", zone: "Zurich Team 2", job: "Engineer", age: "about 30", home: "Winterthur", faith: "No religion", history: "before", knowsScj: "yes",
+        scjHow: "Searched online after a Bible study last year", leaf: "Example member M.", relNow: "Still friends, we play tennis every other week", name: "Example: Daniel L.", fruit: "Lukas M.", relation: "Friend",
         howMet: "We met at a tennis club.", progress: "We've had coffee three times after training. He's very interested in the meaning of life.",
         difficulty: "He's wary of anything religious. I'm not sure what angle to take.",
         slots: ["Sat-Morning", "Sat-Afternoon", "Sun-Afternoon"], slotNote: "", consent: true, status: "sched",
@@ -265,11 +269,26 @@ function requestSections(r, list) {
   <div class="sec">
     <h4>Fruit</h4>
     <dl class="kv">
-      <dt>Initials</dt><dd><b>${esc(r.fruit)}</b></dd>
+      <dt>Name</dt><dd><b>${esc(r.fruit)}</b></dd>
       <dt>Relationship</dt><dd>${esc(r.relation || "–")}</dd>
       ${r.kind === "again" ? "" : `<dt>How connected</dt><dd>${esc(r.howMet || "–")}</dd>`}
+      ${r.job ? `<dt>Occupation</dt><dd>${esc(r.job)}</dd>` : ""}
+      ${r.age ? `<dt>Age</dt><dd>${esc(r.age)}</dd>` : ""}
+      ${r.home ? `<dt>Lives in</dt><dd>${esc(r.home)}</dd>` : ""}
+      ${r.faith ? `<dt>Believer</dt><dd>${esc(r.faith)}</dd>` : ""}
     </dl>
   </div>
+  ${r.history ? `<div class="sec">
+    <h4>History</h4>
+    <dl class="kv">
+      <dt>Status</dt><dd><b>${esc(HIST[r.history] || r.history)}</b></dd>
+      ${r.history === "before" ? `
+      <dt>Knows SCJ</dt><dd>${esc((SCJ.find((x) => x[0] === r.knowsScj) || [, "–"])[1])}</dd>
+      ${r.scjHow ? `<dt>How they knew</dt><dd>${esc(r.scjHow)}</dd>` : ""}
+      ${r.leaf ? `<dt>Leaf (잎사귀)</dt><dd>${esc(r.leaf)}</dd>` : ""}
+      ${r.relNow ? `<dt>Relationship now</dt><dd>${esc(r.relNow)}</dd>` : ""}` : ""}
+    </dl>
+  </div>` : ""}
   <div class="sec">
     <h4>${r.kind === "again" ? "Since last consultation" : "Progress so far"}</h4>
     <p class="prose">${esc(r.progress || "–")}</p>
@@ -375,7 +394,7 @@ function downloadCSV(name, rows) {
 // =====================================================================
 // Request form
 // =====================================================================
-const SUB_FIRST = "Is there someone you want to share the Word with? Let's talk it through together. Takes about 3 minutes.";
+const SUB_FIRST = "Is there someone you want to share the Word with? Let's talk it through together. Takes about 5 minutes.";
 const SUB_AGAIN = "Already had a consultation and need another? We'll pick up from your earlier record.";
 
 async function startApply() {
@@ -414,8 +433,9 @@ async function startApply() {
     kind = k;
     $$("[data-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === k)));
     $$(".js-first-only").forEach((el) => (el.hidden = k === "again"));
+    if (typeof syncHist === "function") syncHist(); // defined below; runs after setup
     $("#f-prog-l").innerHTML = (k === "again" ? "What has happened since the last consultation?" : "What has happened so far?") + '<span class="req">*</span>';
-    $("#f-prog-h").textContent = k === "again" ? "What you tried from the feedback, and how they responded" : "Conversations you've had, how they responded, their interests";
+    $("#f-prog-h").textContent = k === "again" ? "What you tried from the feedback, and how they responded" : "Please describe it in as much detail as you can: conversations, reactions, interests";
     $("#a-sub").textContent = k === "again" ? SUB_AGAIN : SUB_FIRST;
   };
   $$("[data-kind]").forEach((b) => (b.onclick = () => setKind(b.dataset.kind)));
@@ -429,6 +449,22 @@ async function startApply() {
     etc.hidden = relation !== OTHER;
     if (!etc.hidden) etc.focus();
   }));
+
+  // Believer, history, Shincheonji
+  let faith = "", hist = "", scj = "";
+  const faithEl = $("#f-faith"), scjEl = $("#f-scj");
+  faithEl.innerHTML = FAITH.map((f) => `<button type="button" class="chip" data-v="${esc(f)}" aria-pressed="false">${esc(f)}</button>`).join("");
+  scjEl.innerHTML = SCJ.map(([v, l]) => `<button type="button" class="chip" data-v="${v}" aria-pressed="false">${esc(l)}</button>`).join("");
+  const pickIn = (box, v) => $$("button", box).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === v)));
+  $$("button", faithEl).forEach((c) => (c.onclick = () => { faith = c.dataset.v; pickIn(faithEl, faith); }));
+  const syncHist = () => {
+    $$("[data-hist]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.hist === hist)));
+    const before = kind === "first" && hist === "before";
+    $$(".js-before").forEach((el) => (el.hidden = !before));
+    $$(".js-scj-yes").forEach((el) => (el.hidden = !(before && scj === "yes")));
+  };
+  $$("[data-hist]").forEach((b) => (b.onclick = () => { hist = b.dataset.hist; syncHist(); }));
+  $$("button", scjEl).forEach((c) => (c.onclick = () => { scj = c.dataset.v; pickIn(scjEl, scj); syncHist(); }));
 
   // Time grid
   const grid = $("#f-grid");
@@ -463,8 +499,11 @@ async function startApply() {
       if (!clean($("#f-fruit").value)) return need($("#f-fruit"), "Enter your fruit's initials or a nickname");
       if (!relation) { toast("Choose your relationship", true); return false; }
       if (relation === OTHER && !clean(etc.value)) return need(etc, "Describe the relationship");
+      if (kind === "first" && !faith) { toast("Choose whether they are a believer", true); return false; }
     }
     if (n === 3) {
+      if (kind === "first" && !hist) { toast("Choose New fruit or Worked with before", true); return false; }
+      if (kind === "first" && hist === "before" && !scj) { toast("Choose whether they know about Shincheonji", true); return false; }
       if (!clean($("#f-prog").value)) return need($("#f-prog"), "Tell us what has happened so far");
       if (!clean($("#f-diff").value)) return need($("#f-diff"), "Tell us what you're finding difficult");
     }
@@ -478,6 +517,7 @@ async function startApply() {
   nextBtn.onclick = async () => {
     if (!valid(step)) return;
     if (step < 4) return show(step + 1);
+    const first = kind === "first", before = first && hist === "before";
     const data = {
       kind,
       dept: dSel.value, zone: zSel.value,
@@ -485,7 +525,16 @@ async function startApply() {
       fruit: clean($("#f-fruit").value).slice(0, 40),
       relation: (relation === OTHER ? clean(etc.value) : relation).slice(0, 40),
       howMet: kind === "again" ? "" : clean($("#f-how").value).slice(0, 1500),
-      progress: clean($("#f-prog").value).slice(0, 3000),
+      job: first ? clean($("#f-job").value).slice(0, 60) : "",
+      age: first ? clean($("#f-age").value).slice(0, 12) : "",
+      home: first ? clean($("#f-home").value).slice(0, 60) : "",
+      faith: first ? faith : "",
+      history: first ? hist : "",
+      knowsScj: before ? scj : "",
+      scjHow: before && scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
+      leaf: before ? clean($("#f-leaf").value).slice(0, 80) : "",
+      relNow: before ? clean($("#f-now").value).slice(0, 1500) : "",
+      progress: clean($("#f-prog").value).slice(0, 4000),
       difficulty: clean($("#f-diff").value).slice(0, 3000),
       slots: DAYS.flatMap((d) => PERIODS.map((p) => `${d}-${p}`)).filter((k) => slots.has(k)),
       slotNote: clean($("#f-slotnote").value).slice(0, 300),
@@ -510,7 +559,8 @@ async function startApply() {
     }
   };
   $("#d-again").onclick = () => {
-    ["#f-fruit", "#f-how", "#f-prog", "#f-diff", "#f-slotnote", "#f-rel-etc"].forEach((s) => ($(s).value = ""));
+    ["#f-fruit", "#f-how", "#f-job", "#f-age", "#f-home", "#f-scj-how", "#f-leaf", "#f-now", "#f-prog", "#f-diff", "#f-slotnote", "#f-rel-etc"].forEach((s) => ($(s).value = ""));
+    faith = hist = scj = ""; pickIn(faithEl, ""); pickIn(scjEl, ""); syncHist();
     $("#f-consent").checked = false;
     relation = ""; etc.hidden = true;
     $$(".chip", chips).forEach((x) => x.setAttribute("aria-pressed", "false"));
@@ -641,8 +691,8 @@ async function initAdmin() {
 
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; render(); });
   $("#ad-csv").onclick = () => {
-    const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
-    const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.progress, r.difficulty,
+    const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Occupation", "Age", "Lives in", "Believer", "History", "Knows SCJ", "How they knew", "Leaf", "Relationship now", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
+    const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.job, r.age, r.home, r.faith, HIST[r.history] || "", (SCJ.find((x) => x[0] === r.knowsScj) || [, ""])[1], r.scjHow, r.leaf, r.relNow, r.progress, r.difficulty,
       slotsText(r.slots), r.slotNote, SL[r.status], fmtDT(r.scheduledAt), r.place, r.leaderName, r.adminNote, r.feedback,
       (r.followUps || []).map((f) => `${fmtDate(f.at)}: ${f.text}`).join(" / ")]);
     downloadCSV(`fruit-consultations_${todayInput()}.csv`, [head, ...rows]);
