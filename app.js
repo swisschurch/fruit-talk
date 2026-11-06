@@ -146,12 +146,12 @@ function makeDemo() {
       "Women's|Group 1": { name: "Example leader C", email: "leader.c@example.com" },
     },
     requests: [
-      { id: "ex1", kind: "first", dept: "Youth", zone: "Zurich Team 1", job: "Marketing assistant", age: "29", home: "Zurich, Kreis 3", faith: "Christian, not attending", history: "new", name: "Example: Sarah P.", fruit: "K.S.", relation: "Work",
+      { id: "ex1", kind: "first", dept: "Youth", zone: "Zurich Team 1", job: "Marketing assistant", age: "29", home: "Zurich, Kreis 3", faith: "Christian, not attending", prior: "new", name: "Example: Sarah P.", fruit: "K.S.", relation: "Work",
         howMet: "We've been on the same team for two years and often have lunch together.",
         progress: "She keeps talking about burnout, so we've gone for two walks after work. She went to Catholic church as a child.",
         difficulty: "When I bring up faith she laughs it off. I don't know what topic to use for our next meeting.",
         slots: ["Sun-Afternoon", "Wed-Evening", "Fri-Evening"], slotNote: "Wednesdays only after 7 pm", consent: true, status: "new", createdAt: now - 2 * H },
-      { id: "ex2", kind: "first", dept: "Youth", zone: "Zurich Team 2", job: "Engineer", age: "about 30", home: "Winterthur", faith: "No religion", history: "before", knowsScj: "yes",
+      { id: "ex2", kind: "first", dept: "Youth", zone: "Zurich Team 2", job: "Engineer", age: "about 30", home: "Winterthur", faith: "No religion", prior: "before", knowsScj: "yes",
         scjHow: "Searched online after a Bible study last year", leaf: "Example member M.", relNow: "Still friends, we play tennis every other week", name: "Example: Daniel L.", fruit: "Lukas M.", relation: "Friend",
         howMet: "We met at a tennis club.", progress: "We've had coffee three times after training. He's very interested in the meaning of life.",
         difficulty: "He's wary of anything religious. I'm not sure what angle to take.",
@@ -278,11 +278,11 @@ function requestSections(r, list) {
       ${r.faith ? `<dt>Believer</dt><dd>${esc(r.faith)}</dd>` : ""}
     </dl>
   </div>
-  ${r.history ? `<div class="sec">
+  ${r.prior ? `<div class="sec">
     <h4>History</h4>
     <dl class="kv">
-      <dt>Status</dt><dd><b>${esc(HIST[r.history] || r.history)}</b></dd>
-      ${r.history === "before" ? `
+      <dt>Status</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>
+      ${r.prior === "before" ? `
       <dt>Knows SCJ</dt><dd>${esc((SCJ.find((x) => x[0] === r.knowsScj) || [, "–"])[1])}</dd>
       ${r.scjHow ? `<dt>How they knew</dt><dd>${esc(r.scjHow)}</dd>` : ""}
       ${r.leaf ? `<dt>Leaf (잎사귀)</dt><dd>${esc(r.leaf)}</dd>` : ""}
@@ -529,7 +529,7 @@ async function startApply() {
       age: first ? clean($("#f-age").value).slice(0, 12) : "",
       home: first ? clean($("#f-home").value).slice(0, 60) : "",
       faith: first ? faith : "",
-      history: first ? hist : "",
+      prior: first ? hist : "",
       knowsScj: before ? scj : "",
       scjHow: before && scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
       leaf: before ? clean($("#f-leaf").value).slice(0, 80) : "",
@@ -692,7 +692,7 @@ async function initAdmin() {
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; render(); });
   $("#ad-csv").onclick = () => {
     const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Occupation", "Age", "Lives in", "Believer", "History", "Knows SCJ", "How they knew", "Leaf", "Relationship now", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
-    const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.job, r.age, r.home, r.faith, HIST[r.history] || "", (SCJ.find((x) => x[0] === r.knowsScj) || [, ""])[1], r.scjHow, r.leaf, r.relNow, r.progress, r.difficulty,
+    const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.job, r.age, r.home, r.faith, HIST[r.prior] || "", (SCJ.find((x) => x[0] === r.knowsScj) || [, ""])[1], r.scjHow, r.leaf, r.relNow, r.progress, r.difficulty,
       slotsText(r.slots), r.slotNote, SL[r.status], fmtDT(r.scheduledAt), r.place, r.leaderName, r.adminNote, r.feedback,
       (r.followUps || []).map((f) => `${fmtDate(f.at)}: ${f.text}`).join(" / ")]);
     downloadCSV(`fruit-consultations_${todayInput()}.csv`, [head, ...rows]);
