@@ -698,6 +698,47 @@ async function initAdmin() {
   }
 
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; render(); });
+  // ---------- Bulk schedule ----------
+  let bulkPlan = [];
+  $("#ad-bulk-open").onclick = () => { $("#ad-bulk").hidden = false; $("#ad-bulk-text").focus(); };
+  $("#ad-bulk-close").onclick = () => ($("#ad-bulk").hidden = true);
+  $("#ad-bulk-text").addEventListener("input", () => { bulkPlan = []; $("#ad-bulk-apply").disabled = true; });
+  $("#ad-bulk-check").onclick = () => {
+    const lines = $("#ad-bulk-text").value.split("\n").map((l) => l.trim()).filter(Boolean);
+    const taken = new Set();
+    bulkPlan = lines.map((line) => {
+      const [name, fruit, when] = line.split("|").map((x) => clean(x));
+      const t = when ? new Date(when.replace(" ", "T")).getTime() : NaN;
+      if (!name || !fruit || !Number.isFinite(t)) return { line, err: "Use: Name | Fruit | YYYY-MM-DD HH:MM" };
+      const hits = list.filter((r) => !taken.has(r.id) && norm(r.name) === norm(name) && norm(r.fruit) === norm(fruit) && r.status !== "closed");
+      if (!hits.length) return { line, err: "No matching request (check the spelling of name and fruit)" };
+      const r = hits[0]; taken.add(r.id);
+      return { line, r, t };
+    });
+    const ok = bulkPlan.filter((x) => x.r).length;
+    const box = $("#ad-bulk-result");
+    box.hidden = !bulkPlan.length;
+    box.innerHTML = bulkPlan.map((x) => `<li class="row" style="cursor:default"><span class="nm">${x.r ? esc(x.r.name) + "<small>" + esc(x.r.fruit) + "</small>" : esc(x.line)}</span><span>${x.r ? `<span class="pill st-set">${esc(fmtDT(x.t))}</span>` : `<span class="pill st-new">${esc(x.err)}</span>`}</span></li>`).join("");
+    $("#ad-bulk-apply").disabled = !ok;
+    $("#ad-bulk-apply").textContent = ok ? `Apply to ${ok} request${ok === 1 ? "" : "s"}` : "Apply";
+  };
+  $("#ad-bulk-apply").onclick = async () => {
+    const todo = bulkPlan.filter((x) => x.r);
+    const place = clean($("#ad-bulk-place").value);
+    const btn = $("#ad-bulk-apply"); btn.disabled = true;
+    let done = 0, failed = 0;
+    for (const x of todo) {
+      btn.textContent = `Saving ${done + failed + 1} / ${todo.length}…`;
+      const patch = { status: "set", scheduledAt: x.t, history: [...(x.r.history || []), { at: Date.now(), status: "set", by: "Coordinator" }] };
+      if (place) patch.place = place;
+      try { await backend.updateRequest(x.r.id, patch); done++; } catch (e) { console.error(e); failed++; }
+    }
+    btn.textContent = "Apply";
+    bulkPlan = [];
+    toast(failed ? `Scheduled ${done}. ${failed} couldn't be saved.` : `Scheduled ${done} request${done === 1 ? "" : "s"}`, !!failed);
+    if (!failed) { $("#ad-bulk-text").value = ""; $("#ad-bulk-result").hidden = true; $("#ad-bulk").hidden = true; filter = "set"; render(); }
+  };
+
   $("#ad-csv").onclick = () => {
     const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Occupation", "Age", "Lives in", "Believer", "History", "Knows SCJ", "How they knew", "Leaf & BBT", "Relationship now", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
     const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.job, r.age, r.home, r.faith, HIST[r.prior] || "", (SCJ.find((x) => x[0] === r.knowsScj) || [, ""])[1], r.scjHow, r.leaf, r.relNow, r.progress, r.difficulty,

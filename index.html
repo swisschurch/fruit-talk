@@ -454,11 +454,21 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <!-- Requests -->
     <section data-pane="board" class="set-grid">
       <div class="pipe" id="ad-pipe"></div>
+      <div class="panel bulk" id="ad-bulk" hidden>
+        <div class="panel-head"><h3>Bulk schedule</h3><span class="hint" style="flex:1">One line per meeting: <code>Name | Fruit | YYYY-MM-DD HH:MM</code>. Matching requests become <b>Scheduled</b>.</span><button class="btn sm ghost" id="ad-bulk-close" type="button">Close</button></div>
+        <div style="padding:14px 16px;display:grid;gap:12px">
+          <textarea class="inp" id="ad-bulk-text" style="min-height:180px;font-family:ui-monospace,Menlo,monospace;font-size:14px" placeholder="Anna K. | Lukas M. | 2026-11-10 14:00"></textarea>
+          <div class="grid2"><div class="field"><label for="ad-bulk-place">Place (optional, for all lines)</label><input class="inp" id="ad-bulk-place" maxlength="80" placeholder="Church, room 2 / Zoom"></div></div>
+          <div class="actions"><button class="btn" id="ad-bulk-check" type="button">Check</button><button class="btn primary" id="ad-bulk-apply" type="button" disabled>Apply</button></div>
+          <ul class="list" id="ad-bulk-result" style="border:1px solid var(--line);border-radius:8px" hidden></ul>
+        </div>
+      </div>
       <div class="board">
         <div class="panel">
           <div class="panel-head">
             <h3 id="ad-list-title">All requests</h3>
             <input class="inp" id="ad-q" type="search" placeholder="Search name, fruit, group">
+            <button class="btn sm" id="ad-bulk-open" type="button">Bulk schedule</button>
             <button class="btn sm" id="ad-csv" type="button">Download CSV</button>
           </div>
           <ul class="list" id="ad-list"></ul>
