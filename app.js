@@ -848,6 +848,101 @@ async function initAdmin() {
   $("#cal-next").onclick = () => { calStart += 7 * DAY; calStart = mondayOf(calStart + DAY / 2); renderSchedule(); };
   $("#cal-today").onclick = () => { calStart = mondayOf(Date.now()); renderSchedule(); };
 
+  // Save the two visible weeks as a PNG
+  $("#cal-png").onclick = async () => {
+    const btn = $("#cal-png"); btn.disabled = true; btn.textContent = "Saving…";
+    try { await document.fonts.ready; await saveScheduleImage(); }
+    catch (e) { console.error(e); toast("Couldn't make the image", true); }
+    btn.disabled = false; btn.textContent = "Save image";
+  };
+  async function saveScheduleImage() {
+    const FONT = getComputedStyle(document.body).fontFamily;
+    const NUM = getComputedStyle(document.documentElement).getPropertyValue("--num").trim() || FONT;
+    const end = calStart + 14 * DAY;
+    const evs = list.filter((r) => r.scheduledAt >= calStart && r.scheduledAt < end && r.status !== "closed");
+    let h0 = 10, h1 = 21;
+    evs.forEach((r) => { const d = new Date(r.scheduledAt); const s = d.getHours() + d.getMinutes() / 60; h0 = Math.min(h0, Math.floor(s)); h1 = Math.max(h1, Math.ceil(s + DUR / 60)); });
+    const W = 1920, PADX = 44, TW = 70, HH = 74, colW = (W - PADX * 2 - TW) / 7;
+    const gridH = (h1 - h0) * HH, weekH = 52 + 62 + gridH + 20;
+    const H = 36 + 76 + weekH * 2 + 60;
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    const C = { red: "#DA291C", deep: "#B01E13", tint: "#FCECEA", ink: "#141212", ink2: "#3D3836", muted: "#7A716E", line: "#E7E2E0", mist: "#F6F4F3" };
+    const f = (w, s, fam = FONT) => (g.font = `${w} ${s}px ${fam}`);
+    const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); };
+    const fit = (txt, maxW) => { let t = String(txt || ""); if (g.measureText(t).width <= maxW) return t; while (t && g.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t + "…"; };
+    g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+    // header
+    let y = 36;
+    g.fillStyle = C.red; rr(PADX, y, 44, 44, 5); g.fill();
+    g.fillStyle = "#fff"; const k = 44 / 32; g.fillRect(PADX + 13 * k, y + 6 * k, 6 * k, 20 * k); g.fillRect(PADX + 6 * k, y + 13 * k, 20 * k, 6 * k);
+    g.fillStyle = C.ink; f(700, 34); g.textBaseline = "middle"; g.fillText("Fruit Consultation · Feedback schedule", PADX + 60, y + 23);
+    g.textAlign = "right"; f(700, 18); g.fillText(`${new Date(calStart).toLocaleDateString("en-GB", { day: "numeric", month: "long" })} – ${new Date(end - DAY).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`, W - PADX, y + 10);
+    g.fillStyle = C.muted; f(400, 17); g.fillText(`${evs.length} session${evs.length === 1 ? "" : "s"} · 1 hour each`, W - PADX, y + 36);
+    g.textAlign = "left";
+    y += 64; g.fillStyle = C.red; g.fillRect(PADX, y, W - PADX * 2, 4); y += 12;
+    for (let w = 0; w < 2; w++) {
+      const ws = calStart + w * 7 * DAY;
+      y += 30;
+      g.fillStyle = C.red; f(800, 19, NUM); g.fillText(`WEEK ${w + 1}`, PADX, y);
+      g.fillStyle = C.ink; f(600, 22); g.fillText(`${dayLbl(ws)} – ${dayLbl(ws + 6 * DAY)}`, PADX + 104, y);
+      y += 22;
+      const days = [...Array(7)].map((_, d) => new Date(ws).setDate(new Date(ws).getDate() + d));
+      const dayEv = days.map((d0) => evs.filter((r) => r.scheduledAt >= d0 && r.scheduledAt < d0 + DAY).sort((a, b) => a.scheduledAt - b.scheduledAt));
+      g.textAlign = "center";
+      days.forEach((d0, i) => {
+        const cx = PADX + TW + colW * i + colW / 2, busy = dayEv[i].length > 0;
+        g.fillStyle = C.muted; f(700, 14, NUM); g.fillText(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"][i], cx, y + 14);
+        g.fillStyle = busy ? C.ink : C.muted; f(600, 19); g.fillText(dayLbl(d0), cx, y + 38);
+      });
+      y += 62;
+      g.fillStyle = C.line; g.fillRect(PADX + TW, y - 1, colW * 7, 1);
+      // grid
+      g.textAlign = "right";
+      for (let h = h0; h <= h1; h++) {
+        const yy = y + (h - h0) * HH;
+        g.fillStyle = C.line; g.fillRect(PADX + TW, yy, colW * 7, 1);
+        g.fillStyle = C.muted; f(600, 15, NUM); g.fillText(`${pad2(h)}:00`, PADX + TW - 12, yy);
+      }
+      for (let i = 0; i <= 7; i++) { g.fillStyle = C.line; g.fillRect(PADX + TW + colW * i, y, 1, gridH); }
+      g.textAlign = "left";
+      // events
+      dayEv.forEach((mine, i) => {
+        const lanes = [];
+        const pos = mine.map((r) => { let l = lanes.findIndex((e) => e <= r.scheduledAt); if (l < 0) { l = lanes.length; lanes.push(0); } lanes[l] = r.scheduledAt + DUR * 6e4; return l; });
+        const n = Math.max(1, lanes.length), lw = (colW - 12) / n;
+        mine.forEach((r, j) => {
+          const d = new Date(r.scheduledAt), s = d.getHours() + d.getMinutes() / 60;
+          const x = PADX + TW + colW * i + 6 + lw * pos[j], ey = y + (s - h0) * HH + 2, ew = lw - (n > 1 ? 4 : 0), eh = (DUR / 60) * HH - 4;
+          const fu = r.kind === "again", done = r.status === "done" || r.status === "follow";
+          g.fillStyle = done ? C.mist : fu ? "#fff" : C.tint; rr(x, ey, ew, eh, 10); g.fill();
+          if (fu && !done) { g.strokeStyle = C.red; g.lineWidth = 1.5; rr(x + .75, ey + .75, ew - 1.5, eh - 1.5, 10); g.stroke(); }
+          g.save(); rr(x, ey, ew, eh, 10); g.clip(); g.fillStyle = done ? C.muted : C.red; g.fillRect(x, ey, 6, eh); g.restore();
+          const tx = x + 16, mw = ew - 24;
+          g.textBaseline = "top";
+          g.fillStyle = done ? C.muted : C.deep; f(700, 14, NUM); g.fillText(fit(`${hm(r.scheduledAt)}–${hm(r.scheduledAt + DUR * 6e4)}${done ? " · " + SL[r.status] : ""}`, mw), tx, ey + 9);
+          g.fillStyle = C.ink; f(700, 17); g.fillText(fit(r.name, mw), tx, ey + 27);
+          g.fillStyle = C.ink2; f(400, 15); g.fillText(fit(r.fruit, mw), tx, ey + 48);
+          g.textBaseline = "middle";
+        });
+      });
+      y += gridH + 20;
+    }
+    // legend
+    y += 14; f(400, 16); let lx = PADX;
+    [["First request", C.tint, false], ["Follow-up request", "#fff", true], ["Name · Fruit", null]].forEach(([t, bg, line]) => {
+      if (bg) { g.fillStyle = bg; rr(lx, y - 7, 22, 14, 4); g.fill(); if (line) { g.strokeStyle = C.red; g.lineWidth = 1.5; rr(lx, y - 7, 22, 14, 4); g.stroke(); } g.fillStyle = C.red; g.fillRect(lx, y - 7, 5, 14); lx += 30; }
+      g.fillStyle = C.muted; g.fillText(t, lx, y); lx += g.measureText(t).width + 28;
+    });
+    const blob = await new Promise((res) => c.toBlob(res, "image/png"));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    { const d = new Date(calStart); a.download = `Feedback_Schedule_${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.png`; }
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast("Image saved");
+  }
+
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; render(); });
   // ---------- Bulk schedule ----------
   let bulkPlan = [];
