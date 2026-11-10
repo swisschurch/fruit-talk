@@ -608,6 +608,7 @@ async function initAdmin() {
     $$("#ad-main [data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== t));
     if (t === "settings") renderSettings();
     if (t === "poster") renderPosterPane();
+    if (t === "schedule") renderSchedule();
   };
   tabs.forEach((b) => (b.onclick = () => openTab(b.dataset.tab)));
 
@@ -625,6 +626,7 @@ async function initAdmin() {
     $("#ad-list-title").textContent = filter ? SL[filter] : "All requests";
     renderRows($("#ad-list"), visible(), sel, pick, list.length ? "No requests match" : "No requests yet. Once the QR poster is up, they'll arrive here.");
     if (!dirty) renderDetail();
+    if (!$('[data-pane="schedule"]').hidden) renderSchedule();
   }
   function pick(id) { sel = id; dirty = false; render(); $("#ad-detail").classList.remove("closed"); $("#ad-detail").scrollTop = 0; }
 
@@ -696,6 +698,155 @@ async function initAdmin() {
       catch (e) { toast("Couldn't delete: " + (e.code || e.message), true); }
     };
   }
+
+  // ---------- Schedule (week calendar, drag to move) ----------
+  const CAL = { from: 8, to: 22, hh: 62, step: 15 };
+  const DAY = 864e5;
+  const mondayOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
+  let calStart = mondayOf(Date.now());
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const hm = (t) => { const d = new Date(t); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  const dayLbl = (t) => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const DUR = 60;
+
+  function renderSchedule() {
+    if (calDrag) return; // don't redraw under the pointer
+    const weeks = $("#cal-weeks");
+    const end = calStart + 14 * DAY;
+    $("#cal-range").textContent = `${new Date(calStart).toLocaleDateString("en-GB", { day: "numeric", month: "long" })} – ${new Date(end - DAY).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`;
+    const evs = list.filter((r) => r.scheduledAt && r.status !== "closed");
+    const tray = list.filter((r) => !r.scheduledAt && (r.status === "new" || r.status === "sched"));
+    $("#cal-tray-n").textContent = `· ${tray.length}`;
+    $("#cal-tray").innerHTML = tray.length
+      ? tray.map((r) => `<span class="cal-chip${r.kind === "again" ? " fu" : ""}" data-id="${esc(r.id)}"><b>${esc(r.name)}</b><small>${esc(r.fruit)}</small></span>`).join("")
+      : `<span style="color:var(--muted);font-size:14px">Everyone has a time.</span>`;
+    const today = new Date().setHours(0, 0, 0, 0);
+    const H = (CAL.to - CAL.from) * CAL.hh;
+    let html = "";
+    for (let w = 0; w < 2; w++) {
+      const ws = calStart + w * 7 * DAY;
+      html += `<div class="panel cal-week"><div class="cal-wk">Week ${w + 1}<span>${esc(dayLbl(ws))} – ${esc(dayLbl(ws + 6 * DAY))}</span></div><div class="cal-grid" style="--hh:${CAL.hh}px"><div></div>`;
+      for (let d = 0; d < 7; d++) {
+        const t = new Date(ws).setDate(new Date(ws).getDate() + d);
+        html += `<div class="cal-dh${t === today ? " today" : ""}"><small>${["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"][d]}</small>${esc(dayLbl(t))}</div>`;
+      }
+      html += `<div class="cal-times" style="height:${H}px">`;
+      for (let h = CAL.from; h <= CAL.to; h++) html += `<span style="top:${(h - CAL.from) * CAL.hh}px">${pad2(h)}:00</span>`;
+      html += `</div>`;
+      for (let d = 0; d < 7; d++) {
+        const day0 = new Date(ws).setDate(new Date(ws).getDate() + d);
+        const mine = evs.filter((r) => r.scheduledAt >= day0 && r.scheduledAt < day0 + DAY).sort((a, b) => a.scheduledAt - b.scheduledAt);
+        // side-by-side lanes for overlaps
+        const lanes = [];
+        const pos = mine.map((r) => { let l = lanes.findIndex((e) => e <= r.scheduledAt); if (l < 0) { l = lanes.length; lanes.push(0); } lanes[l] = r.scheduledAt + DUR * 6e4; return l; });
+        const n = Math.max(1, lanes.length);
+        html += `<div class="cal-col${day0 === today ? " today" : ""}" data-day="${day0}" style="height:${H}px">`;
+        mine.forEach((r, i) => {
+          const d0 = new Date(r.scheduledAt);
+          const top = Math.max(0, (d0.getHours() + d0.getMinutes() / 60 - CAL.from) * CAL.hh);
+          const lock = r.status === "done" || r.status === "follow";
+          html += `<div class="cal-ev${r.kind === "again" ? " fu" : ""}${lock ? " done" : ""}" data-id="${esc(r.id)}" title="${esc(r.name)} · ${esc(r.fruit)}${r.place ? " · " + esc(r.place) : ""}"
+            style="top:${top + 1}px;height:${(DUR / 60) * CAL.hh - 3}px;left:calc(${(100 / n) * pos[i]}% + 4px);width:calc(${100 / n}% - 8px)">
+            <span class="t">${hm(r.scheduledAt)}–${hm(r.scheduledAt + DUR * 6e4)}${lock ? " · " + esc(SL[r.status]) : ""}</span><span class="n">${esc(r.name)}</span><span class="f">${esc(r.fruit)}</span></div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div></div>`;
+    }
+    html += `<div class="cal-legend"><span><i style="background:var(--red-tint);border-left:4px solid var(--red)"></i>First request</span><span><i style="background:#fff;border:1.5px solid var(--red);border-left-width:4px"></i>Follow-up request</span><span><i style="background:var(--mist);border-left:4px solid var(--muted)"></i>Already consulted (fixed)</span></div>`;
+    weeks.innerHTML = html;
+    $$(".cal-ev:not(.done), .cal-chip", $('[data-pane="schedule"]')).forEach((el) => el.addEventListener("pointerdown", calDown));
+    $$(".cal-ev.done", weeks).forEach((el) => (el.onclick = () => openReq(el.dataset.id)));
+  }
+  const openReq = (id) => { openTab("board"); filter = null; pick(id); };
+
+  let calDrag = null;
+  function calDown(e) {
+    if (e.button !== 0) return;
+    const el = e.currentTarget;
+    const r = list.find((x) => x.id === el.dataset.id);
+    if (!r) return;
+    const box = el.getBoundingClientRect();
+    calDrag = { el, r, x0: e.clientX, y0: e.clientY, dx: e.clientX - box.left, dy: el.classList.contains("cal-chip") ? 8 : e.clientY - box.top, moved: false, ghost: null, float: null, target: null, chip: el.classList.contains("cal-chip") };
+    el.setPointerCapture(e.pointerId);
+    el.addEventListener("pointermove", calMove);
+    el.addEventListener("pointerup", calUp, { once: true });
+    el.addEventListener("pointercancel", calCancel, { once: true });
+  }
+  function calSlot(x, topY) {
+    const col = $$(".cal-col").find((c) => { const b = c.getBoundingClientRect(); return x >= b.left && x < b.right && topY > b.top - CAL.hh && topY < b.bottom; });
+    if (!col) return null;
+    const b = col.getBoundingClientRect();
+    let mins = Math.round((((topY - b.top) / CAL.hh) * 60) / CAL.step) * CAL.step;
+    mins = Math.min(Math.max(mins, 0), (CAL.to - CAL.from) * 60 - DUR);
+    return { col, mins, t: Number(col.dataset.day) + (CAL.from * 60 + mins) * 6e4 };
+  }
+  function calMove(e) {
+    const g = calDrag; if (!g) return;
+    if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) < 5) return;
+    if (!g.moved) {
+      g.moved = true;
+      g.float = g.el.cloneNode(true);
+      g.float.classList.add("cal-drag");
+      const b = g.el.getBoundingClientRect();
+      g.float.style.cssText += `;width:${b.width}px;height:${g.chip ? b.height : b.height}px;left:0;top:0;margin:0`;
+      document.body.appendChild(g.float);
+      g.el.style.opacity = ".35";
+    }
+    g.float.style.transform = `translate(${e.clientX - g.dx}px,${e.clientY - g.dy}px)`;
+    const s = calSlot(e.clientX, e.clientY - g.dy);
+    if (!g.ghost) { g.ghost = document.createElement("div"); g.ghost.className = "cal-ghost"; }
+    if (s) {
+      if (g.ghost.parentNode !== s.col) s.col.appendChild(g.ghost);
+      g.ghost.style.cssText = `top:${(s.mins / 60) * CAL.hh + 1}px;height:${(DUR / 60) * CAL.hh - 3}px;left:4px;right:4px`;
+      g.ghost.textContent = `${hm(s.t)}–${hm(s.t + DUR * 6e4)}`;
+      g.target = s;
+    } else { g.ghost.remove(); g.target = null; }
+    // auto-scroll near the window edge
+    if (e.clientY < 90) window.scrollBy(0, -12); else if (e.clientY > innerHeight - 40) window.scrollBy(0, 12);
+  }
+  function calCleanup() {
+    const g = calDrag; if (!g) return;
+    g.el.removeEventListener("pointermove", calMove);
+    g.float && g.float.remove(); g.ghost && g.ghost.remove();
+    g.el.style.opacity = "";
+    calDrag = null;
+  }
+  function calCancel() { calCleanup(); renderSchedule(); }
+  async function calUp() {
+    const g = calDrag; if (!g) return;
+    const { r, target, moved, chip, el } = g;
+    calCleanup();
+    if (!moved) { openReq(r.id); return; }
+    if (!target || target.t === r.scheduledAt) { renderSchedule(); return; }
+    const prevT = r.scheduledAt || null, prevSt = r.status;
+    const patch = { scheduledAt: target.t };
+    if (chip || r.status === "new" || r.status === "sched") { patch.status = "set"; patch.history = [...(r.history || []), { at: Date.now(), status: "set", by: "Coordinator" }]; }
+    el.classList.add("saving");
+    try {
+      await backend.updateRequest(r.id, patch);
+      toastUndo(`${r.name} · ${r.fruit} → ${new Date(target.t).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${hm(target.t)}`, async () => {
+        const back = { scheduledAt: prevT };
+        if (patch.status) { back.status = prevSt; back.history = r.history || []; }
+        try { await backend.updateRequest(r.id, back); toast("Moved back"); } catch (e) { toast("Couldn't undo: " + (e.code || e.message), true); }
+      });
+    } catch (e) { console.error(e); toast("Couldn't move: " + (e.code || e.message), true); renderSchedule(); }
+  }
+  function toastUndo(msg, undo) {
+    toast(msg);
+    const t = $("#toast");
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => (t.hidden = true), 7000);
+    const b = document.createElement("button");
+    b.textContent = "Undo"; b.type = "button";
+    b.style.cssText = "margin-left:12px;background:transparent;border:0;color:#FF8A80;font-weight:700;cursor:pointer;pointer-events:auto";
+    b.onclick = () => { b.remove(); undo(); };
+    t.style.pointerEvents = "auto";
+    t.appendChild(b);
+  }
+  $("#cal-prev").onclick = () => { calStart -= 7 * DAY; calStart = mondayOf(calStart + DAY / 2); renderSchedule(); };
+  $("#cal-next").onclick = () => { calStart += 7 * DAY; calStart = mondayOf(calStart + DAY / 2); renderSchedule(); };
+  $("#cal-today").onclick = () => { calStart = mondayOf(Date.now()); renderSchedule(); };
 
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; render(); });
   // ---------- Bulk schedule ----------

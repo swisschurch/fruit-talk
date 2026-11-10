@@ -236,6 +236,43 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
 .set-foot{position:sticky;bottom:0;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .set-foot p{font-size:14px;color:var(--muted);flex:1;min-width:200px}
 
+/* schedule */
+.cal-bar{display:flex;align-items:center;gap:8px 10px;padding:12px 16px;flex-wrap:wrap}
+.cal-bar h3{font-size:16px}
+.cal-bar .spacer{flex:1}
+.cal-range{color:var(--muted);font-size:14px;font-weight:600}
+.cal-help{font-size:13px;color:var(--muted);margin:-4px 2px 0}
+.cal-tray{padding:12px 16px;display:grid;gap:10px}
+.cal-tray-h{font-size:12px;font-family:var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--red);font-weight:700}
+.cal-tray-h span{color:var(--muted)}
+.cal-chips{display:flex;flex-wrap:wrap;gap:6px}
+.cal-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border:1px solid var(--line-2);border-radius:999px;background:var(--paper);font-size:13px;cursor:grab;touch-action:none;user-select:none}
+.cal-chip small{color:var(--muted)}
+.cal-chip.fu{border-color:var(--red)}
+.cal-week{overflow-x:auto}
+.cal-wk{display:flex;gap:12px;align-items:baseline;padding:12px 16px 4px;font-family:var(--num);font-weight:800;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--red)}
+.cal-wk span{font-family:inherit;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:700;font-size:15px}
+.cal-grid{display:grid;grid-template-columns:56px repeat(7,minmax(104px,1fr));min-width:800px;padding:0 12px 14px 4px}
+.cal-dh{height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:14px;border-bottom:1px solid var(--line)}
+.cal-dh small{font-family:var(--num);font-size:11px;letter-spacing:.12em;color:var(--muted)}
+.cal-dh.today{color:var(--red)}
+.cal-times{position:relative}
+.cal-times span{position:absolute;right:8px;transform:translateY(-50%);font-family:var(--num);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cal-col{position:relative;border-left:1px solid var(--line);background-image:repeating-linear-gradient(180deg,var(--line) 0 1px,transparent 1px var(--hh))}
+.cal-col.today{background-color:#FFFAF9}
+.cal-ev{position:absolute;border-radius:8px;background:var(--red-tint);border-left:5px solid var(--red);padding:4px 8px;overflow:hidden;display:flex;flex-direction:column;cursor:grab;touch-action:none;user-select:none;font-size:13px;line-height:1.25}
+.cal-ev .t{font-family:var(--num);font-weight:700;font-size:12px;color:var(--red-deep);font-variant-numeric:tabular-nums}
+.cal-ev .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ev .f{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ev.fu{background:#fff;border:1.5px solid var(--red);border-left-width:5px}
+.cal-ev.done{background:var(--mist);border-left-color:var(--muted);cursor:pointer}
+.cal-ev.done .t{color:var(--muted)}
+.cal-ev.saving{opacity:.55}
+.cal-ghost{position:absolute;border-radius:8px;border:2px dashed var(--red);background:rgba(218,41,28,.08);pointer-events:none;padding:4px 8px;font-family:var(--num);font-weight:700;font-size:12px;color:var(--red-deep);z-index:5}
+.cal-drag{position:fixed;z-index:60;pointer-events:none;opacity:.9;box-shadow:0 10px 30px rgba(40,10,5,.22)}
+.cal-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);padding:0 4px}
+.cal-legend i{display:inline-block;width:18px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+
 /* poster tab preview */
 .poster-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .poster-tools code{background:var(--paper);border:1px solid var(--line);padding:8px 12px;border-radius:var(--r);font-size:13px;word-break:break-all}
@@ -436,6 +473,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <div class="title"><svg class="cross" width="28" height="28"><use href="#i-cross"/></svg>Fruit Consultation <small>Coordinator</small></div>
     <nav class="tabs" role="tablist" id="ad-tabs" hidden>
       <button class="tab" role="tab" data-tab="board" aria-selected="true">Requests</button>
+      <button class="tab" role="tab" data-tab="schedule" aria-selected="false">Schedule</button>
       <button class="tab" role="tab" data-tab="settings" aria-selected="false">Groups &amp; leaders</button>
       <button class="tab" role="tab" data-tab="poster" aria-selected="false">QR poster</button>
     </nav>
@@ -475,6 +513,21 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
         </div>
         <aside class="panel detail closed" id="ad-detail" aria-live="polite"></aside>
       </div>
+    </section>
+
+    <!-- Schedule -->
+    <section data-pane="schedule" class="set-grid" hidden>
+      <div class="panel cal-bar">
+        <h3>Feedback schedule</h3>
+        <span class="cal-range num" id="cal-range"></span>
+        <span class="spacer"></span>
+        <button class="btn sm" id="cal-prev" type="button" aria-label="Previous week">←</button>
+        <button class="btn sm" id="cal-today" type="button">This week</button>
+        <button class="btn sm" id="cal-next" type="button" aria-label="Next week">→</button>
+      </div>
+      <p class="cal-help">Drag a meeting to another day or time to move it (15-minute steps). Drag a name from <b>Not scheduled yet</b> onto the calendar to book it. Click a meeting to open the request.</p>
+      <div class="panel cal-tray"><div class="cal-tray-h">Not scheduled yet <span id="cal-tray-n"></span></div><div class="cal-chips" id="cal-tray"></div></div>
+      <div id="cal-weeks" class="set-grid"></div>
     </section>
 
     <!-- Groups & leaders -->
