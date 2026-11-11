@@ -312,10 +312,55 @@ function requestSections(r, list) {
   </div>` : ""}`;
 }
 
+// Save one request (header + sections) as a PNG
+function bindSaveImg(box, r) {
+  const b = $(".js-save-img", box);
+  if (b) b.onclick = () => saveRequestImage(box, r, b);
+}
+let h2cP = null;
+const loadH2C = () => (h2cP ||= new Promise((ok, no) => {
+  if (window.html2canvas) return ok(window.html2canvas);
+  const sc = document.createElement("script");
+  sc.src = "assets/html2canvas.min.js";
+  sc.onload = () => ok(window.html2canvas); sc.onerror = () => { h2cP = null; no(new Error("load")); };
+  document.head.appendChild(sc);
+}));
+async function saveRequestImage(box, r, btn) {
+  const src = $(".js-card", box);
+  if (!src) return;
+  btn.disabled = true; btn.textContent = "Saving…";
+  const card = document.createElement("div");
+  card.style.cssText = "position:fixed;left:-10000px;top:0;width:760px;background:#fff;color:var(--ink);padding:28px 32px 20px;font-family:var(--kr)";
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:3px solid var(--red)">
+      <svg width="30" height="30" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#DA291C"/><path fill="#fff" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/></svg>
+      <div style="display:grid;gap:2px">
+        <b style="font-size:22px;line-height:1.2">${esc(r.name)} <span style="color:var(--muted);font-weight:500;font-size:15px">${esc(r.dept)} · ${esc(r.zone)}</span>${r.kind === "again" ? ' <span class="tag">Follow-up</span>' : ""}</b>
+        <span style="font-size:13px;color:var(--muted)">Fruit Consultation · Requested ${esc(fmtDT(r.createdAt))}${r.scheduledAt ? " · Meeting <b style=\"color:var(--ink)\">" + esc(fmtDT(r.scheduledAt)) + "</b>" : ""}${r.place ? " · " + esc(r.place) : ""}</span>
+      </div>
+    </div>
+    <div class="d-body" style="padding:4px 0 0">${src.innerHTML}</div>`;
+  document.body.appendChild(card);
+  try {
+    const h2c = await loadH2C();
+    await document.fonts.ready;
+    const canvas = await h2c(card, { scale: 2, backgroundColor: "#ffffff", logging: false, useCORS: true });
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `Fruit_${(r.name + "_" + r.fruit).replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "")}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast("Image saved");
+  } catch (e) { console.error(e); toast("Couldn't make the image", true); }
+  card.remove();
+  btn.disabled = false; btn.textContent = "Save image";
+}
+
 function detailHead(r, closeId) {
   return `
   <div class="d-head">
-    <div class="actions"><button class="btn sm ghost back" type="button" id="${closeId}">← List</button></div>
+    <div class="actions"><button class="btn sm ghost back" type="button" id="${closeId}">← List</button><span class="spacer"></span><button class="btn sm js-save-img" type="button">Save image</button></div>
     <h2>${esc(r.name)} ${pill(r.status)} ${r.kind === "again" ? '<span class="tag">Follow-up</span>' : ""}</h2>
     <div class="sub"><span>${esc(r.dept)} · ${esc(r.zone)}</span><span class="num">Requested ${esc(fmtDT(r.createdAt))}</span>${r.leaderName ? `<span>Leader: ${esc(r.leaderName)}</span>` : ""}</div>
   </div>`;
@@ -640,7 +685,7 @@ async function initAdmin() {
     if (r.leaderEmail && !opts.some((o) => o.email === r.leaderEmail)) opts.push({ email: r.leaderEmail, name: r.leaderName || r.leaderEmail });
     box.innerHTML = detailHead(r, "ad-close") + `
     <div class="d-body">
-      ${requestSections(r, list)}
+      <div class="js-card">${requestSections(r, list)}</div>
       <div class="sec">
         <h4>Schedule &amp; leader</h4>
         <div class="manage">
@@ -668,6 +713,7 @@ async function initAdmin() {
         ${(r.followUps || []).length ? fuList(r.followUps) : ""}
       </div>
     </div>`;
+    bindSaveImg(box, r);
     let st = r.status;
     const markDirty = () => (dirty = true);
     $$("#m-st button", box).forEach((b) => (b.onclick = () => { st = b.dataset.st; $$("#m-st button", box).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); markDirty(); }));
@@ -1117,7 +1163,7 @@ function initLeader(u, me) {
           ${r.adminNote ? `<dt>Coordinator note</dt><dd>${esc(r.adminNote)}</dd>` : ""}
         </dl>
       </div>
-      ${requestSections(r, list)}
+      <div class="js-card">${requestSections(r, list)}</div>
       <div class="sec">
         <h4>Feedback &amp; follow-up</h4>
         <div class="manage">
@@ -1158,6 +1204,7 @@ function initLeader(u, me) {
     $$("#l-st button", box).forEach((b) => (b.onclick = () => { st = b.dataset.st; dirty = true; $$("#l-st button", box).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
     $("#l-fb", box).addEventListener("input", () => (dirty = true));
     $("#ld-close").onclick = () => box.classList.add("closed");
+    bindSaveImg(box, r);
     $("#l-save", box).onclick = async () => {
       const patch = { feedback: clean($("#l-fb", box).value).slice(0, 5000), followUps: fu, status: st };
       if (st !== r.status) patch.history = [...(r.history || []), { at: Date.now(), status: st, by: (me && me.name) || "Leader" }];
