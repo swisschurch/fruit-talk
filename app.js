@@ -98,6 +98,13 @@ async function makeLive(fb) {
     addToolCheck(r) {
       return F.addDoc(F.collection(db, "toolChecks"), { ...r, status: "new", createdAt: F.serverTimestamp() });
     },
+    watchTools(cb, err) {
+      return F.onSnapshot(F.collection(db, "toolChecks"), (s) => cb(s.docs.map(toObj).sort(byNew)), err);
+    },
+    updateTool(id, patch) {
+      return F.updateDoc(F.doc(db, "toolChecks", id), { ...patch, updatedAt: F.serverTimestamp() });
+    },
+    deleteTool(id) { return F.deleteDoc(F.doc(db, "toolChecks", id)); },
     onAuth(cb) {
       U.onAuthStateChanged(auth, (u) => cb(u ? { email: (u.email || "").toLowerCase(), name: u.displayName || "" } : null));
     },
@@ -201,6 +208,9 @@ function makeDemo() {
     async getConfig() { return { departments: st.departments }; },
     async addRequest(r) { st.requests.push({ ...r, id: "r" + Date.now().toString(36), status: "new", createdAt: Date.now() }); save(); },
     async addToolCheck(r) { (st.toolChecks ||= []).push({ ...r, id: "t" + Date.now().toString(36), status: "new", createdAt: Date.now() }); save(); },
+    watchTools(cb) { const f = () => cb((st.toolChecks || []).slice().sort((a, b) => b.createdAt - a.createdAt).map((r) => ({ ...r }))); subs.add(f); f(); return () => subs.delete(f); },
+    async updateTool(id, patch) { const r = (st.toolChecks || []).find((x) => x.id === id); if (r) Object.assign(r, patch, { updatedAt: Date.now() }); save(); },
+    async deleteTool(id) { st.toolChecks = (st.toolChecks || []).filter((x) => x.id !== id); save(); },
     onAuth(cb) { cb({ email: "demo", name: "Demo" }); },
     async signIn() {}, async signOut() {},
     async checkAdmin() { return true; },
@@ -340,7 +350,7 @@ async function saveRequestImage(box, r, btn) {
       <svg width="30" height="30" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#DA291C"/><path fill="#fff" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/></svg>
       <div style="display:grid;gap:2px">
         <b style="font-size:22px;line-height:1.2">${esc(r.name)} <span style="color:var(--muted);font-weight:500;font-size:15px">${esc(r.dept)} · ${esc(r.zone)}</span>${r.kind === "again" ? ' <span class="tag">Follow-up</span>' : ""}</b>
-        <span style="font-size:13px;color:var(--muted)">Fruit Consultation · Requested ${esc(fmtDT(r.createdAt))}${r.scheduledAt ? " · Meeting <b style=\"color:var(--ink)\">" + esc(fmtDT(r.scheduledAt)) + "</b>" : ""}${r.place ? " · " + esc(r.place) : ""}</span>
+        <span style="font-size:13px;color:var(--muted)">${esc(r._title || "Fruit Consultation")} · Requested ${esc(fmtDT(r.createdAt))}${r.scheduledAt ? " · Meeting <b style=\"color:var(--ink)\">" + esc(fmtDT(r.scheduledAt)) + "</b>" : ""}${r.place ? " · " + esc(r.place) : ""}</span>
       </div>
     </div>
     <div class="d-body" style="padding:4px 0 0">${src.innerHTML}</div>`;
@@ -352,7 +362,7 @@ async function saveRequestImage(box, r, btn) {
     const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `Fruit_${(r.name + "_" + r.fruit).replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "")}.png`;
+    a.download = `${r._file || "Fruit"}_${(r.name + "_" + r.fruit).replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "")}.png`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     toast("Image saved");
@@ -632,30 +642,25 @@ async function startApply() {
 }
 
 // =====================================================================
-// Evangelism tool check form
+// Evangelism tool check form (a record of the plan, not a test)
 // =====================================================================
-const TOOL_Q = {
-  toolType: ["Survey", "Interest card", "Card or flyer", "Booklet", "Digital (link, app)", "Other"],
-  stage: ["Idea only", "Draft file", "Finished or printed", "Already used with people"],
-  interactive: ["None", "1–2", "3–5", "6 or more"],
-  tried: ["No one yet", "1 person", "2 people", "3 or more"],
-  proof: ["No one yet", "1 person", "2 or more people"],
-  final: ["Yes, the real copy", "Only the file", "Not yet"],
-  flow: ["Everyday talk", "Their needs", "Spiritual interest", "Gospel & testimony"],
-  testimony: ["Yes, practised aloud", "Roughly", "Not yet"],
-  faithWords: ["Yes", "No", "Not sure"],
-};
-const TOOL_REQ = ["toolType", "stage", "interactive", "tried", "proof", "final", "testimony", "faithWords"];
+const TOOL_FIELDS = [
+  ["target", "Target group"], ["place", "Place"], ["concept", "Concept"],
+  ["materials", "Materials"], ["participation", "How the person takes part"], ["opening", "Opening line"],
+  ["flow", "Conversation flow"], ["activity", "Activity to draw them in"],
+];
+const TOOL_ST = [
+  { id: "new", l: "Received" }, { id: "set", l: "Meeting set" }, { id: "done", l: "Feedback given" }, { id: "closed", l: "Closed" },
+];
+const TSL = Object.fromEntries(TOOL_ST.map((s) => [s.id, s.l]));
 
 async function startTool() {
   const root = $("#view-tool");
   root.hidden = false;
   const prof = store.get("fruit-talk-profile", {});
-  const ans = { flow: [] };
   const slots = new Set();
-  let step = 1;
+  let step = 1, fb = "";
 
-  // Department and group
   let depts = CFG.departments || [];
   const dSel = $("#t-dept"), zSel = $("#t-zone");
   const fillZones = () => {
@@ -677,20 +682,13 @@ async function startTool() {
   loadDepartments().then((d) => { if (d && d.length) { depts = d; fillDepts(); } });
   if (prof.name) $("#t-name").value = prof.name;
 
-  // Chip questions
-  $$("[data-q]", root).forEach((box) => {
-    const q = box.dataset.q, multi = !!box.dataset.multi;
-    box.setAttribute("role", "group");
-    box.innerHTML = TOOL_Q[q].map((o) => `<button type="button" class="chip" data-v="${esc(o)}" aria-pressed="false">${esc(o)}</button>`).join("");
-    $$("button", box).forEach((b) => (b.onclick = () => {
-      const v = b.dataset.v;
-      if (multi) { const a = ans[q]; a.includes(v) ? a.splice(a.indexOf(v), 1) : a.push(v); }
-      else ans[q] = v;
-      $$("button", box).forEach((x) => x.setAttribute("aria-pressed", String(multi ? ans[q].includes(x.dataset.v) : x.dataset.v === ans[q])));
-    }));
-  });
+  const setFb = (v) => {
+    fb = v;
+    $$("[data-fb]", root).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.fb === v)));
+    $$(".js-discuss", root).forEach((el) => (el.hidden = v !== "discuss"));
+  };
+  $$("[data-fb]", root).forEach((b) => (b.onclick = () => setFb(b.dataset.fb)));
 
-  // Time grid
   const grid = $("#t-grid");
   grid.style.setProperty("--cols", PERIODS.length);
   grid.innerHTML = `<span></span>` + PERIODS.map((p) => `<span class="h">${esc(p)}</span>`).join("") +
@@ -702,41 +700,36 @@ async function startTool() {
     b.setAttribute("aria-pressed", String(slots.has(k)));
   }));
 
-  // Steps
   const prevBtn = $("#t-prev"), nextBtn = $("#t-next");
   const show = (n) => {
     step = n;
     $$(".step", root).forEach((s) => (s.hidden = Number(s.dataset.step) !== n));
     $$(".progress i", root).forEach((i, k) => i.classList.toggle("on", k < n));
     prevBtn.style.visibility = n === 1 ? "hidden" : "visible";
-    nextBtn.textContent = n === 4 ? "Send request" : "Next";
+    nextBtn.textContent = n === 4 ? "Send" : "Next";
     window.scrollTo({ top: 0 });
   };
   const need = (el, msg) => { toast(msg, true); el.focus(); return false; };
-  const pickMsg = (q) => {
-    const box = $(`[data-q="${q}"]`, root);
-    toast("Please answer: " + clean(box.parentElement.querySelector(".lbl").textContent.replace("*", "")), true);
-    box.scrollIntoView({ block: "center", behavior: "smooth" });
-    return false;
-  };
+  const v = (id) => clean($(id).value);
   const valid = (n) => {
     if (n === 1) {
       if (!dSel.value) return need(dSel, "Choose your department");
       if (!zSel.value) return need(zSel, "Choose your group");
-      if (!clean($("#t-name").value)) return need($("#t-name"), "Enter your name");
+      if (!v("#t-name")) return need($("#t-name"), "Enter your name");
     }
     if (n === 2) {
-      if (!clean($("#t-tool").value)) return need($("#t-tool"), "Enter the tool's name");
-      for (const q of ["toolType", "stage"]) if (!ans[q]) return pickMsg(q);
+      if (!v("#t-tool")) return need($("#t-tool"), "Enter the tool's name");
+      if (!v("#t-target")) return need($("#t-target"), "Enter the target group");
+      if (!v("#t-place")) return need($("#t-place"), "Enter the place");
+      if (!v("#t-concept")) return need($("#t-concept"), "Describe the concept");
     }
     if (n === 3) {
-      for (const q of ["interactive", "tried", "proof", "final", "testimony"]) if (!ans[q]) return pickMsg(q);
-      if (!clean($("#t-open").value)) return need($("#t-open"), "Write your opening line");
-      if (!ans.faithWords) return pickMsg("faithWords");
+      if (!v("#t-materials")) return need($("#t-materials"), "List the materials you'll use");
     }
     if (n === 4) {
-      if (!clean($("#t-ask").value)) return need($("#t-ask"), "Tell us what you'd like checked");
-      if (!slots.size) { toast("Tap at least one time that works", true); return false; }
+      if (!v("#t-ask")) return need($("#t-ask"), "Write your request");
+      if (!fb) { toast("Choose written feedback or discuss together", true); return false; }
+      if (fb === "discuss" && !slots.size) { toast("Tap at least one time that works", true); return false; }
       if (!$("#t-consent").checked) return need($("#t-consent"), "Tick the consent box to continue");
     }
     return true;
@@ -745,28 +738,35 @@ async function startTool() {
   nextBtn.onclick = async () => {
     if (!valid(step)) return;
     if (step < 4) return show(step + 1);
+    const discuss = fb === "discuss";
     const data = {
       dept: dSel.value, zone: zSel.value,
-      name: clean($("#t-name").value).slice(0, 40),
-      tool: clean($("#t-tool").value).slice(0, 60),
-      use: clean($("#t-use").value).slice(0, 120),
-      ...Object.fromEntries(TOOL_REQ.map((q) => [q, ans[q]])),
-      flow: TOOL_Q.flow.filter((v) => ans.flow.includes(v)),
-      opening: clean($("#t-open").value).slice(0, 500),
-      ask: clean($("#t-ask").value).slice(0, 3000),
-      reactions: clean($("#t-react").value).slice(0, 2000),
-      slots: DAYS.flatMap((d) => PERIODS.map((p) => `${d}-${p}`)).filter((k) => slots.has(k)),
-      slotNote: clean($("#t-slotnote").value).slice(0, 300),
+      name: v("#t-name").slice(0, 40),
+      tool: v("#t-tool").slice(0, 60),
+      target: v("#t-target").slice(0, 120),
+      place: v("#t-place").slice(0, 120),
+      concept: v("#t-concept").slice(0, 3000),
+      materials: v("#t-materials").slice(0, 1500),
+      participation: v("#t-part").slice(0, 1500),
+      opening: v("#t-open").slice(0, 500),
+      flow: v("#t-flow").slice(0, 3000),
+      activity: v("#t-activity").slice(0, 1500),
+      ask: v("#t-ask").slice(0, 3000),
+      discuss,
+      slots: discuss ? DAYS.flatMap((d) => PERIODS.map((p) => `${d}-${p}`)).filter((k) => slots.has(k)) : [],
+      slotNote: discuss ? v("#t-slotnote").slice(0, 300) : "",
       consent: true,
     };
     nextBtn.disabled = true; nextBtn.textContent = "Sending…";
     try {
       await backend.addToolCheck(data);
       store.set("fruit-talk-profile", { dept: data.dept, zone: data.zone, name: data.name });
+      $("#t-done-msg").textContent = discuss ? "The coordinator will look at your plan and contact you to set a time." : "The coordinator will look at your plan and send written feedback.";
       $("#t-sum").innerHTML = `
         <div><span>From</span><b>${esc(data.name)} · ${esc(data.dept)}, ${esc(data.zone)}</b></div>
-        <div><span>Tool</span><b>${esc(data.tool)} (${esc(data.toolType)})</b></div>
-        <div><span>Times</span><span style="color:var(--ink)">${esc(slotsText(data.slots))}</span></div>`;
+        <div><span>Tool</span><b>${esc(data.tool)}</b></div>
+        <div><span>Feedback</span><b>${discuss ? "Discuss together" : "Written"}</b></div>
+        ${discuss ? `<div><span>Times</span><span style="color:var(--ink)">${esc(slotsText(data.slots))}</span></div>` : ""}`;
       root.hidden = true;
       $("#view-tdone").hidden = false;
       window.scrollTo({ top: 0 });
@@ -775,10 +775,117 @@ async function startTool() {
       const code = String((e && (e.code || e.message)) || "unknown");
       toast(code.includes("permission") ? "Couldn't send (permission-denied). The coordinator needs to update the Firebase rules." : `Couldn't send (${code}). Check your connection and tap again.`, true);
     } finally {
-      nextBtn.disabled = false; nextBtn.textContent = "Send request";
+      nextBtn.disabled = false; nextBtn.textContent = "Send";
     }
   };
   show(1);
+}
+
+// Coordinator: Tool checks tab
+function toolSections(r) {
+  const row = (k, l) => (r[k] ? `<div class="sec"><h4>${esc(l)}</h4><p class="prose">${esc(r[k])}</p></div>` : "");
+  return `
+  <div class="sec"><h4>Tool</h4>
+    <dl class="kv">
+      <dt>Tool name</dt><dd><b>${esc(r.tool)}</b></dd>
+      <dt>Target group</dt><dd>${esc(r.target || "–")}</dd>
+      <dt>Place</dt><dd>${esc(r.place || "–")}</dd>
+    </dl>
+  </div>
+  ${row("concept", "Concept")}
+  ${row("materials", "Materials")}
+  ${row("participation", "How the person takes part")}
+  ${row("opening", "Opening line")}
+  ${row("flow", "Conversation flow")}
+  ${row("activity", "Activity to draw them in")}
+  <div class="sec"><h4>Request</h4><p class="prose">${esc(r.ask || "–")}</p>
+    <dl class="kv" style="margin-top:10px">
+      <dt>Feedback</dt><dd><b>${r.discuss ? "Discuss together" : "Written feedback"}</b></dd>
+      ${r.discuss ? `<dt>Available</dt><dd>${esc(slotsText(r.slots || []))}${r.slotNote ? `<br><span style="color:var(--muted)">${esc(r.slotNote)}</span>` : ""}</dd>` : ""}
+    </dl>
+  </div>
+  ${r.feedback ? `<div class="sec"><h4>Coordinator feedback</h4><p class="prose">${esc(r.feedback)}</p></div>` : ""}`;
+}
+function initToolChecks() {
+  let tl = [], sel = null, q = "", f = "", dirty = false;
+  const tpill = (s) => `<span class="pill st-${esc(s)}">${esc(TSL[s] || s)}</span>`;
+  const visible = () => tl.filter((r) =>
+    (!f || (f === "discuss" ? r.discuss : r.status !== "done" && r.status !== "closed")) &&
+    (!q || [r.name, r.tool, r.dept, r.zone, r.target, r.place].join(" ").toLowerCase().includes(q.toLowerCase())));
+  const render = () => {
+    const open = tl.filter((r) => r.status === "new").length;
+    $("#tc-n").hidden = !open; $("#tc-n").textContent = open;
+    const rows = visible(), el = $("#tc-list");
+    if (!rows.length) el.innerHTML = `<li class="empty"><svg class="cross" width="28" height="28"><use href="#i-cross"/></svg><span>${tl.length ? "Nothing matches" : "No tool checks yet."}</span></li>`;
+    else el.innerHTML = rows.map((r) => `
+      <li class="row" data-id="${esc(r.id)}" tabindex="0" aria-current="${r.id === sel}">
+        <span class="nm">${esc(r.name)}<small>${esc(r.dept)} · ${esc(r.zone)}</small></span>
+        <span>${tpill(r.status)}</span>
+        <span class="fr">Tool <b>${esc(r.tool)}</b> · ${esc(r.target || "")}</span>
+        <span class="meta"><span class="num">Sent ${esc(fmtDate(r.createdAt))}</span>${r.discuss ? '<span class="tag dis">Discuss</span>' : '<span class="tag">Written</span>'}${r.scheduledAt ? `<span>Meeting <b class="num" style="color:var(--ink)">${esc(fmtDT(r.scheduledAt))}</b></span>` : ""}</span>
+      </li>`).join("");
+    $$(".row", el).forEach((li) => {
+      li.onclick = () => pick(li.dataset.id);
+      li.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(li.dataset.id); } };
+    });
+    if (!dirty) detail();
+  };
+  const pick = (id) => {
+    if (dirty && id !== sel && !confirmLeave()) return;
+    sel = id; dirty = false; render(); $("#tc-detail").classList.remove("closed");
+  };
+  const confirmLeave = () => { toast("You have unsaved changes. Save them or press Close first.", true); return false; };
+  const detail = () => {
+    const box = $("#tc-detail");
+    const r = tl.find((x) => x.id === sel);
+    if (!r) { box.innerHTML = emptyDetail("Pick a tool check from the list to see it here."); box.classList.add("closed"); return; }
+    let st = r.status;
+    box.innerHTML = `
+    <div class="d-head">
+      <div class="actions"><button class="btn sm ghost back" type="button" id="tc-close">← List</button><span class="spacer"></span><button class="btn sm js-save-img" type="button">Save image</button></div>
+      <h2>${esc(r.name)} ${tpill(r.status)} ${r.discuss ? '<span class="tag dis">Discuss</span>' : ""}</h2>
+      <div class="sub"><span>${esc(r.dept)} · ${esc(r.zone)}</span><span class="num">Sent ${esc(fmtDT(r.createdAt))}</span></div>
+    </div>
+    <div class="d-body">
+      <div class="js-card">${toolSections(r)}</div>
+      <div class="sec">
+        <h4>Feedback &amp; meeting</h4>
+        <div class="manage">
+          <div class="field"><span class="lbl">Status</span>
+            <div class="stbar" id="tc-st">${TOOL_ST.map((s) => `<button type="button" data-st="${s.id}" aria-pressed="${st === s.id}">${esc(s.l)}</button>`).join("")}</div></div>
+          <div class="grid2">
+            <div class="field"><label for="tc-when">Meeting date &amp; time</label><input type="datetime-local" class="inp" id="tc-when" value="${esc(toLocalInput(r.scheduledAt))}"></div>
+            <div class="field"><label for="tc-mplace">Meeting place</label><input class="inp" id="tc-mplace" maxlength="80" value="${esc(r.meetPlace || "")}" placeholder="Church, room 2 / Zoom"></div>
+          </div>
+          <div class="field"><label for="tc-fb">Feedback</label><span class="hint">What to keep, what to change, next step</span><textarea class="inp" id="tc-fb" maxlength="5000" style="min-height:140px">${esc(r.feedback || "")}</textarea></div>
+          <div class="actions"><button class="btn primary" type="button" id="tc-save">Save</button><span class="spacer"></span><button class="btn sm ghost" type="button" id="tc-del">Delete</button></div>
+          <div class="confirm" id="tc-confirm" hidden><span>Delete this tool check? This can't be undone.</span><button class="btn sm" type="button" id="tc-del-no">Cancel</button><button class="btn sm danger" type="button" id="tc-del-yes">Delete</button></div>
+        </div>
+      </div>
+    </div>`;
+    bindSaveImg(box, { ...r, fruit: r.tool, kind: "", place: r.meetPlace, _title: "Evangelism Tool Check", _file: "Tool" });
+    const mark = () => (dirty = true);
+    $$("#tc-st button", box).forEach((b) => (b.onclick = () => { st = b.dataset.st; $$("#tc-st button", box).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); mark(); }));
+    ["#tc-when", "#tc-mplace", "#tc-fb"].forEach((s) => $(s, box).addEventListener("input", mark));
+    $("#tc-close", box).onclick = () => { dirty = false; box.classList.add("closed"); };
+    $("#tc-save", box).onclick = async () => {
+      const when = $("#tc-when", box).value;
+      if (st === "set" && !when) { toast("Add a meeting date and time first", true); $("#tc-when", box).focus(); return; }
+      const patch = { status: st, scheduledAt: when ? new Date(when).getTime() : null, meetPlace: clean($("#tc-mplace", box).value).slice(0, 80), feedback: clean($("#tc-fb", box).value).slice(0, 5000) };
+      const btn = $("#tc-save", box); btn.disabled = true; btn.textContent = "Saving…";
+      try { await backend.updateTool(r.id, patch); dirty = false; toast("Saved"); detail(); }
+      catch (e) { console.error(e); toast("Couldn't save: " + (e.code || e.message), true); btn.disabled = false; btn.textContent = "Save"; }
+    };
+    $("#tc-del", box).onclick = () => ($("#tc-confirm", box).hidden = false);
+    $("#tc-del-no", box).onclick = () => ($("#tc-confirm", box).hidden = true);
+    $("#tc-del-yes", box).onclick = async () => {
+      try { await backend.deleteTool(r.id); sel = null; dirty = false; toast("Deleted"); }
+      catch (e) { toast("Couldn't delete: " + (e.code || e.message), true); }
+    };
+  };
+  $("#tc-q").addEventListener("input", (e) => { q = e.target.value; render(); });
+  $$("#tc-f button").forEach((b) => (b.onclick = () => { f = b.dataset.f; $$("#tc-f button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); render(); }));
+  backend.watchTools((l) => { tl = l; render(); }, (e) => { console.error(e); toast("Couldn't load tool checks: " + (e.code || e.message), true); });
 }
 
 // =====================================================================
@@ -1194,6 +1301,7 @@ async function initAdmin() {
   };
 
   backend.watchAll((l) => { list = l; render(); }, (e) => { console.error(e); toast("Couldn't load requests: " + (e.code || e.message), true); });
+  initToolChecks();
 
   // ---------- Groups & leaders ----------
   let draft = null;

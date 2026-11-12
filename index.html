@@ -96,6 +96,8 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .home-foot{text-align:center;color:var(--muted);font-size:13px;margin-top:6px}
 .home-back{color:#fff;text-decoration:none;font-size:20px;line-height:1;margin-right:2px;padding:2px 6px 4px;border-radius:6px}
 .home-back:hover{background:rgba(255,255,255,.15)}
+.tab-n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:var(--red);color:#fff;font-size:12px;font-weight:700;font-family:var(--num)}
+.tag.dis{background:var(--ink);color:#fff}
 .qgrp{display:grid;gap:16px;padding-top:14px;border-top:1px solid var(--line)}
 .qgrp h3{font-family:var(--num);font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--red)}
 .progress{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
@@ -367,7 +369,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     </a>
     <a class="home-card" href="#tool">
       <span class="home-ic" aria-hidden="true">🧰</span>
-      <span class="home-t"><b>Evangelism Tool Check</b><span>Get your card, survey or other tool checked before you use it</span></span>
+      <span class="home-t"><b>Evangelism Tool Check</b><span>Share your tool plan and get feedback before you use it</span></span>
       <span class="home-go" aria-hidden="true">→</span>
     </a>
     <p class="home-foot">About 5 minutes · No login needed</p>
@@ -381,7 +383,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
       <div class="brand"><a href="./" class="home-back" aria-label="Back to start">←</a><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
       <h1>Evangelism Tool Check</h1>
       <p class="tagline">Prepared with wisdom, used with confidence.</p>
-      <p><span>Let's check your tool together before you go out.</span><span class="sub-hint">Answer with what you've actually done so far. There are no wrong answers · About 5 minutes</span></p>
+      <p><span>Share your plan as it is now, so we can give you feedback.</span><span class="sub-hint">This is a record, not a test · About 5 minutes</span></p>
       <div class="progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     </div>
   </header>
@@ -401,47 +403,41 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <section class="step fade" data-step="2" hidden>
       <div class="step-title"><span class="n">2 / 4</span><h2>Your tool</h2></div>
       <div class="card">
-        <div class="field"><label for="t-tool">Tool name<span class="req">*</span></label><input id="t-tool" class="inp" maxlength="60" required placeholder="e.g. Book Scent survey"></div>
-        <div class="field"><span class="lbl">What kind of tool is it?<span class="req">*</span></span><div class="chips" data-q="toolType"></div></div>
-        <div class="field"><span class="lbl">Where is it now?<span class="req">*</span></span><div class="chips" data-q="stage"></div></div>
-        <div class="field"><label for="t-use">Where and with whom will you use it?</label><input id="t-use" class="inp" maxlength="120" placeholder="e.g. University café, students in their 20s"></div>
+        <div class="field"><label for="t-tool">Tool name<span class="req">*</span></label><input id="t-tool" class="inp" maxlength="60" placeholder="e.g. Book Scent survey"></div>
+        <div class="field"><label for="t-target">Target group<span class="req">*</span></label><input id="t-target" class="inp" maxlength="120" placeholder="e.g. University students in their 20s"></div>
+        <div class="field"><label for="t-place">Place<span class="req">*</span></label><input id="t-place" class="inp" maxlength="120" placeholder="e.g. Café near ETH, Zurich HB"></div>
+        <div class="field"><label for="t-concept">Concept<span class="req">*</span></label><span class="hint">What the tool is and the idea behind it</span><textarea id="t-concept" class="inp" maxlength="3000" style="min-height:120px"></textarea></div>
       </div>
     </section>
 
     <section class="step fade" data-step="3" hidden>
-      <div class="step-title"><span class="n">3 / 4</span><h2>Quick self-check</h2></div>
+      <div class="step-title"><span class="n">3 / 4</span><h2>Your plan</h2></div>
       <div class="card">
-        <p class="note">Pick what is true right now, not what should be. This helps us find what to improve.</p>
-        <div class="qgrp"><h3>Interest</h3>
-          <div class="field"><span class="lbl">How many parts can the person tick, choose or write in themselves?<span class="req">*</span></span><div class="chips" data-q="interactive"></div></div>
-          <div class="field"><span class="lbl">How many people outside church have tried it?<span class="req">*</span></span><div class="chips" data-q="tried"></div></div>
-        </div>
-        <div class="qgrp"><h3>Professional</h3>
-          <div class="field"><span class="lbl">Who has proofread it besides you?<span class="req">*</span></span><div class="chips" data-q="proof"></div></div>
-          <div class="field"><span class="lbl">Have you checked the finished version (print or screen)?<span class="req">*</span></span><div class="chips" data-q="final"></div></div>
-        </div>
-        <div class="qgrp"><h3>Clear intention</h3>
-          <div class="field"><span class="lbl">Which steps does the conversation reach? Tick all that the tool covers.</span><span class="hint">Everyday talk → their needs → spiritual interest → gospel and testimony</span><div class="chips" data-q="flow" data-multi="1"></div></div>
-          <div class="field"><span class="lbl">Can you share your testimony in about 1 minute?<span class="req">*</span></span><div class="chips" data-q="testimony"></div></div>
-        </div>
-        <div class="qgrp"><h3>Lower boundaries</h3>
-          <div class="field"><label for="t-open">Write your opening line exactly as you'd say it<span class="req">*</span></label><textarea id="t-open" class="inp" maxlength="500" style="min-height:84px" placeholder="e.g. Hi! We're asking students what helps them most when they're stressed. Do you have a minute?"></textarea></div>
-          <div class="field"><span class="lbl">Does the first part mention church or faith?<span class="req">*</span></span><div class="chips" data-q="faithWords"></div></div>
-        </div>
+        <p class="note">Write what you have actually planned so far. Leave a box empty if it isn't decided yet.</p>
+        <div class="field"><label for="t-materials">Materials (tools) you'll use<span class="req">*</span></label><textarea id="t-materials" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. A5 survey sheet, interest cards, laptop"></textarea></div>
+        <div class="field"><label for="t-part">How the person takes part</label><span class="hint">What they choose, tick or write</span><textarea id="t-part" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. They pick 3 of 12 interest cards and rank them"></textarea></div>
+        <div class="field"><label for="t-open">Opening line</label><span class="hint">Exactly as you'd say it</span><textarea id="t-open" class="inp" maxlength="500" style="min-height:72px" placeholder="e.g. Hi! We're asking students what helps them most when they're stressed. Do you have a minute?"></textarea></div>
+        <div class="field"><label for="t-flow">Conversation flow</label><span class="hint">Step by step, from the first words to where you want to go</span><textarea id="t-flow" class="inp" maxlength="3000" style="min-height:120px" placeholder="1. Opening and survey&#10;2. Talk about their answers&#10;3. …"></textarea></div>
+        <div class="field"><label for="t-activity">Activity to draw them in</label><span class="hint">What you'll do to get them involved or to meet again</span><textarea id="t-activity" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Offer to send their survey results and invite them to a book talk"></textarea></div>
       </div>
     </section>
 
     <section class="step fade" data-step="4" hidden>
-      <div class="step-title"><span class="n">4 / 4</span><h2>What should we look at?</h2></div>
+      <div class="step-title"><span class="n">4 / 4</span><h2>Your request</h2></div>
       <div class="card">
-        <div class="field"><label for="t-ask">What would you like checked?<span class="req">*</span></label><span class="hint">Where you feel unsure, or what you want feedback on</span><textarea id="t-ask" class="inp" maxlength="3000" required></textarea></div>
-        <div class="field"><label for="t-react">How have people reacted so far?</label><textarea id="t-react" class="inp" maxlength="2000" style="min-height:84px" placeholder="Leave empty if you haven't used it yet"></textarea></div>
+        <div class="field"><label for="t-ask">Request<span class="req">*</span></label><span class="hint">What you'd like feedback on</span><textarea id="t-ask" class="inp" maxlength="3000"></textarea></div>
         <div class="field">
-          <span class="lbl">When can we meet for the check?<span class="req">*</span></span>
+          <span class="lbl">How would you like the feedback?<span class="req">*</span></span>
+          <div class="seg" role="group" aria-label="How would you like the feedback?">
+            <button type="button" data-fb="written" aria-pressed="false"><b>Written feedback</b><span>We'll reply in writing</span></button>
+            <button type="button" data-fb="discuss" aria-pressed="false"><b>Discuss together</b><span>Meet with the coordinator</span></button>
+          </div>
+        </div>
+        <div class="field js-discuss" hidden>
+          <span class="lbl">When can we meet?<span class="req">*</span></span>
           <div class="tgrid-wrap"><div class="tgrid" id="t-grid"></div></div>
         </div>
-        <div class="field"><label for="t-slotnote">Note on timing</label><input id="t-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
-        <p class="note">Please bring the tool itself (or a photo or file) to the check.</p>
+        <div class="field js-discuss" hidden><label for="t-slotnote">Note on timing</label><input id="t-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
         <label class="consent"><input type="checkbox" id="t-consent"><span>I agree that the coordinator and my group leader may read this.<small>So we can help you prepare well.</small></span></label>
       </div>
     </section>
@@ -458,9 +454,9 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <div class="done-card">
       <img src="assets/friends.jpg" alt="Four friendly characters hugging a smiling lemon">
       <div class="done-body">
-        <div class="done-title"><svg class="cross" width="36" height="36"><use href="#i-cross"/></svg><h1>Check request received</h1></div>
+        <div class="done-title"><svg class="cross" width="36" height="36"><use href="#i-cross"/></svg><h1>Plan received</h1></div>
         <p class="small">Thank you for preparing with care.</p>
-        <p>The coordinator will contact you to set a time. Please bring your tool with you.</p>
+        <p id="t-done-msg">The coordinator will look at your plan and send feedback.</p>
         <div class="sum" id="t-sum"></div>
         <a class="btn primary" href="./">Back to start</a>
       </div>
@@ -607,6 +603,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <nav class="tabs" role="tablist" id="ad-tabs" hidden>
       <button class="tab" role="tab" data-tab="board" aria-selected="true">Requests</button>
       <button class="tab" role="tab" data-tab="schedule" aria-selected="false">Schedule</button>
+      <button class="tab" role="tab" data-tab="tools" aria-selected="false">Tool checks <span class="tab-n" id="tc-n" hidden></span></button>
       <button class="tab" role="tab" data-tab="settings" aria-selected="false">Groups &amp; leaders</button>
       <button class="tab" role="tab" data-tab="poster" aria-selected="false">QR poster</button>
     </nav>
@@ -662,6 +659,25 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
       <p class="cal-help">Drag a meeting to another day or time to move it (15-minute steps). Drag a name from <b>Not scheduled yet</b> onto the calendar to book it. Click a meeting to open the request.</p>
       <div class="panel cal-tray"><div class="cal-tray-h">Not scheduled yet <span id="cal-tray-n"></span></div><div class="cal-chips" id="cal-tray"></div></div>
       <div id="cal-weeks" class="set-grid"></div>
+    </section>
+
+    <!-- Tool checks -->
+    <section data-pane="tools" class="set-grid" hidden>
+      <div class="board">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Tool checks</h3>
+            <input class="inp" id="tc-q" type="search" placeholder="Search name, tool, group">
+            <div class="stbar" id="tc-f">
+              <button type="button" data-f="" aria-pressed="true">All</button>
+              <button type="button" data-f="discuss" aria-pressed="false">Discussion requests</button>
+              <button type="button" data-f="open" aria-pressed="false">Not done yet</button>
+            </div>
+          </div>
+          <ul class="list" id="tc-list"></ul>
+        </div>
+        <aside class="panel detail closed" id="tc-detail" aria-live="polite"></aside>
+      </div>
     </section>
 
     <!-- Groups & leaders -->

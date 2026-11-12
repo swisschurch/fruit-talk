@@ -51,13 +51,12 @@ service cloud.firestore {
         && str(d.slotNote, 300);
     }
 
-    // Evangelism tool check: members can only create.
+    // Evangelism tool check (a record of the plan): members can only create.
     function validToolCheck() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['dept', 'zone', 'name', 'tool', 'use', 'toolType', 'stage',
-                               'interactive', 'tried', 'proof', 'final', 'flow', 'testimony',
-                               'opening', 'faithWords', 'ask', 'reactions',
-                               'slots', 'slotNote', 'consent', 'status', 'createdAt'])
+      return d.keys().hasOnly(['dept', 'zone', 'name', 'tool', 'target', 'place', 'concept',
+                               'materials', 'participation', 'opening', 'flow', 'activity',
+                               'ask', 'discuss', 'slots', 'slotNote', 'consent', 'status', 'createdAt'])
         && d.status == 'new'
         && d.consent == true
         && d.createdAt == request.time
@@ -65,13 +64,14 @@ service cloud.firestore {
         && str(d.zone, 40) && d.zone.size() > 0
         && str(d.name, 40) && d.name.size() > 0
         && str(d.tool, 60) && d.tool.size() > 0
-        && str(d.use, 120)
-        && str(d.toolType, 40) && str(d.stage, 40) && str(d.interactive, 40) && str(d.tried, 40)
-        && str(d.proof, 40) && str(d.final, 40) && str(d.testimony, 40) && str(d.faithWords, 40)
-        && d.flow is list && d.flow.size() <= 4
-        && str(d.opening, 500) && d.opening.size() > 0
+        && str(d.target, 120) && d.target.size() > 0
+        && str(d.place, 120) && d.place.size() > 0
+        && str(d.concept, 3000) && d.concept.size() > 0
+        && str(d.materials, 1500) && d.materials.size() > 0
+        && str(d.participation, 1500) && str(d.opening, 500)
+        && str(d.flow, 3000) && str(d.activity, 1500)
         && str(d.ask, 3000) && d.ask.size() > 0
-        && str(d.reactions, 2000)
+        && d.discuss is bool
         && d.slots is list && d.slots.size() <= 40
         && str(d.slotNote, 300);
     }
