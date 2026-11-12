@@ -84,6 +84,20 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .done-body .small{font-size:14px;color:var(--muted);margin-top:-8px}
 .consent small{display:block;color:var(--muted);font-size:13px;margin-top:3px}
 .poster .qrrow .tagline{display:block;font-size:2.8cqw;color:var(--red);font-weight:600;margin:-.6cqw 0 1.6cqw}
+/* home chooser */
+.home-body{max-width:620px;margin:0 auto;padding-block:24px 40px;display:grid;gap:14px}
+.home-card{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:16px;padding:20px;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;transition:border-color .15s,transform .15s,box-shadow .15s}
+.home-card:hover,.home-card:focus-visible{border-color:var(--red);box-shadow:0 8px 24px rgba(40,10,5,.08);transform:translateY(-1px)}
+.home-ic{width:56px;height:56px;border-radius:12px;background:var(--red-tint);display:grid;place-items:center;font-size:28px}
+.home-t{display:grid;gap:4px}
+.home-t b{font-size:19px;font-weight:700}
+.home-t span{font-size:14px;color:var(--muted);line-height:1.4}
+.home-go{font-size:22px;color:var(--red);font-weight:700}
+.home-foot{text-align:center;color:var(--muted);font-size:13px;margin-top:6px}
+.home-back{color:#fff;text-decoration:none;font-size:20px;line-height:1;margin-right:2px;padding:2px 6px 4px;border-radius:6px}
+.home-back:hover{background:rgba(255,255,255,.15)}
+.qgrp{display:grid;gap:16px;padding-top:14px;border-top:1px solid var(--line)}
+.qgrp h3{font-family:var(--num);font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--red)}
 .progress{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
 .progress i{height:4px;background:rgba(255,255,255,.35);border-radius:2px}
 .progress i.on{background:#fff}
@@ -335,11 +349,130 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
   <symbol id="i-cross-w" viewBox="0 0 32 32"><rect width="32" height="32" rx="3" fill="#fff"/><path fill="#DA291C" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/></symbol>
 </svg>
 
+<!-- ================= Home: choose a form ================= -->
+<main id="view-home" hidden>
+  <header class="a-head">
+    <div class="in gut">
+      <div class="brand"><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
+      <h1>How can we help?</h1>
+      <p class="tagline">One soul is more precious than the whole world.</p>
+      <p>Choose what you'd like to request.</p>
+    </div>
+  </header>
+  <div class="home-body gut">
+    <a class="home-card" href="#fruit">
+      <span class="home-ic" aria-hidden="true">🍎</span>
+      <span class="home-t"><b>Fruit Consultation</b><span>Talk through someone on your heart with the coordinator and your leader</span></span>
+      <span class="home-go" aria-hidden="true">→</span>
+    </a>
+    <a class="home-card" href="#tool">
+      <span class="home-ic" aria-hidden="true">🧰</span>
+      <span class="home-t"><b>Evangelism Tool Check</b><span>Get your card, survey or other tool checked before you use it</span></span>
+      <span class="home-go" aria-hidden="true">→</span>
+    </a>
+    <p class="home-foot">About 5 minutes · No login needed</p>
+  </div>
+</main>
+
+<!-- ================= Tool check form ================= -->
+<main id="view-tool" hidden>
+  <header class="a-head">
+    <div class="in gut">
+      <div class="brand"><a href="./" class="home-back" aria-label="Back to start">←</a><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
+      <h1>Evangelism Tool Check</h1>
+      <p class="tagline">Prepared with wisdom, used with confidence.</p>
+      <p><span>Let's check your tool together before you go out.</span><span class="sub-hint">Answer with what you've actually done so far. There are no wrong answers · About 5 minutes</span></p>
+      <div class="progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </header>
+
+  <form id="t-form" class="a-body gut" novalidate autocomplete="off">
+    <section class="step fade" data-step="1">
+      <div class="step-title"><span class="n">1 / 4</span><h2>About you</h2></div>
+      <div class="card">
+        <div class="grid2">
+          <div class="field"><label for="t-dept">Department<span class="req">*</span></label><select id="t-dept" class="inp" required></select></div>
+          <div class="field"><label for="t-zone">Group<span class="req">*</span></label><select id="t-zone" class="inp" required></select></div>
+        </div>
+        <div class="field"><label for="t-name">Your name<span class="req">*</span></label><input id="t-name" class="inp" maxlength="40" required placeholder="Anna Keller"></div>
+      </div>
+    </section>
+
+    <section class="step fade" data-step="2" hidden>
+      <div class="step-title"><span class="n">2 / 4</span><h2>Your tool</h2></div>
+      <div class="card">
+        <div class="field"><label for="t-tool">Tool name<span class="req">*</span></label><input id="t-tool" class="inp" maxlength="60" required placeholder="e.g. Book Scent survey"></div>
+        <div class="field"><span class="lbl">What kind of tool is it?<span class="req">*</span></span><div class="chips" data-q="toolType"></div></div>
+        <div class="field"><span class="lbl">Where is it now?<span class="req">*</span></span><div class="chips" data-q="stage"></div></div>
+        <div class="field"><label for="t-use">Where and with whom will you use it?</label><input id="t-use" class="inp" maxlength="120" placeholder="e.g. University café, students in their 20s"></div>
+      </div>
+    </section>
+
+    <section class="step fade" data-step="3" hidden>
+      <div class="step-title"><span class="n">3 / 4</span><h2>Quick self-check</h2></div>
+      <div class="card">
+        <p class="note">Pick what is true right now, not what should be. This helps us find what to improve.</p>
+        <div class="qgrp"><h3>Interest</h3>
+          <div class="field"><span class="lbl">How many parts can the person tick, choose or write in themselves?<span class="req">*</span></span><div class="chips" data-q="interactive"></div></div>
+          <div class="field"><span class="lbl">How many people outside church have tried it?<span class="req">*</span></span><div class="chips" data-q="tried"></div></div>
+        </div>
+        <div class="qgrp"><h3>Professional</h3>
+          <div class="field"><span class="lbl">Who has proofread it besides you?<span class="req">*</span></span><div class="chips" data-q="proof"></div></div>
+          <div class="field"><span class="lbl">Have you checked the finished version (print or screen)?<span class="req">*</span></span><div class="chips" data-q="final"></div></div>
+        </div>
+        <div class="qgrp"><h3>Clear intention</h3>
+          <div class="field"><span class="lbl">Which steps does the conversation reach? Tick all that the tool covers.</span><span class="hint">Everyday talk → their needs → spiritual interest → gospel and testimony</span><div class="chips" data-q="flow" data-multi="1"></div></div>
+          <div class="field"><span class="lbl">Can you share your testimony in about 1 minute?<span class="req">*</span></span><div class="chips" data-q="testimony"></div></div>
+        </div>
+        <div class="qgrp"><h3>Lower boundaries</h3>
+          <div class="field"><label for="t-open">Write your opening line exactly as you'd say it<span class="req">*</span></label><textarea id="t-open" class="inp" maxlength="500" style="min-height:84px" placeholder="e.g. Hi! We're asking students what helps them most when they're stressed. Do you have a minute?"></textarea></div>
+          <div class="field"><span class="lbl">Does the first part mention church or faith?<span class="req">*</span></span><div class="chips" data-q="faithWords"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step fade" data-step="4" hidden>
+      <div class="step-title"><span class="n">4 / 4</span><h2>What should we look at?</h2></div>
+      <div class="card">
+        <div class="field"><label for="t-ask">What would you like checked?<span class="req">*</span></label><span class="hint">Where you feel unsure, or what you want feedback on</span><textarea id="t-ask" class="inp" maxlength="3000" required></textarea></div>
+        <div class="field"><label for="t-react">How have people reacted so far?</label><textarea id="t-react" class="inp" maxlength="2000" style="min-height:84px" placeholder="Leave empty if you haven't used it yet"></textarea></div>
+        <div class="field">
+          <span class="lbl">When can we meet for the check?<span class="req">*</span></span>
+          <div class="tgrid-wrap"><div class="tgrid" id="t-grid"></div></div>
+        </div>
+        <div class="field"><label for="t-slotnote">Note on timing</label><input id="t-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
+        <p class="note">Please bring the tool itself (or a photo or file) to the check.</p>
+        <label class="consent"><input type="checkbox" id="t-consent"><span>I agree that the coordinator and my group leader may read this.<small>So we can help you prepare well.</small></span></label>
+      </div>
+    </section>
+  </form>
+
+  <div class="a-foot"><div class="in gut">
+    <button type="button" class="btn" id="t-prev">Back</button>
+    <button type="button" class="btn primary" id="t-next">Next</button>
+  </div></div>
+</main>
+
+<main id="view-tdone" hidden>
+  <div class="in gut">
+    <div class="done-card">
+      <img src="assets/friends.jpg" alt="Four friendly characters hugging a smiling lemon">
+      <div class="done-body">
+        <div class="done-title"><svg class="cross" width="36" height="36"><use href="#i-cross"/></svg><h1>Check request received</h1></div>
+        <p class="small">Thank you for preparing with care.</p>
+        <p>The coordinator will contact you to set a time. Please bring your tool with you.</p>
+        <div class="sum" id="t-sum"></div>
+        <a class="btn primary" href="./">Back to start</a>
+      </div>
+    </div>
+  </div>
+</main>
+
 <!-- ================= Request form ================= -->
 <main id="view-apply" hidden>
   <header class="a-head">
     <div class="in gut">
-      <div class="brand"><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
+      <div class="brand"><a href="./" class="home-back" aria-label="Back to start">←</a><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
       <h1>Fruit Consultation</h1>
       <p class="tagline">One soul is more precious than the whole world.</p>
       <p><span id="a-sub">Is there someone on your heart? Let's talk it through together.</span><span class="sub-hint" id="a-sub-hint">Because you love your friends and family · About 5 minutes</span></p>

@@ -95,6 +95,9 @@ async function makeLive(fb) {
     addRequest(r) {
       return F.addDoc(F.collection(db, "requests"), { ...r, status: "new", createdAt: F.serverTimestamp() });
     },
+    addToolCheck(r) {
+      return F.addDoc(F.collection(db, "toolChecks"), { ...r, status: "new", createdAt: F.serverTimestamp() });
+    },
     onAuth(cb) {
       U.onAuthStateChanged(auth, (u) => cb(u ? { email: (u.email || "").toLowerCase(), name: u.displayName || "" } : null));
     },
@@ -197,6 +200,7 @@ function makeDemo() {
     mode: "demo",
     async getConfig() { return { departments: st.departments }; },
     async addRequest(r) { st.requests.push({ ...r, id: "r" + Date.now().toString(36), status: "new", createdAt: Date.now() }); save(); },
+    async addToolCheck(r) { (st.toolChecks ||= []).push({ ...r, id: "t" + Date.now().toString(36), status: "new", createdAt: Date.now() }); save(); },
     onAuth(cb) { cb({ email: "demo", name: "Demo" }); },
     async signIn() {}, async signOut() {},
     async checkAdmin() { return true; },
@@ -624,6 +628,156 @@ async function startApply() {
     show(1);
   };
   setKind("first");
+  show(1);
+}
+
+// =====================================================================
+// Evangelism tool check form
+// =====================================================================
+const TOOL_Q = {
+  toolType: ["Survey", "Interest card", "Card or flyer", "Booklet", "Digital (link, app)", "Other"],
+  stage: ["Idea only", "Draft file", "Finished or printed", "Already used with people"],
+  interactive: ["None", "1–2", "3–5", "6 or more"],
+  tried: ["No one yet", "1 person", "2 people", "3 or more"],
+  proof: ["No one yet", "1 person", "2 or more people"],
+  final: ["Yes, the real copy", "Only the file", "Not yet"],
+  flow: ["Everyday talk", "Their needs", "Spiritual interest", "Gospel & testimony"],
+  testimony: ["Yes, practised aloud", "Roughly", "Not yet"],
+  faithWords: ["Yes", "No", "Not sure"],
+};
+const TOOL_REQ = ["toolType", "stage", "interactive", "tried", "proof", "final", "testimony", "faithWords"];
+
+async function startTool() {
+  const root = $("#view-tool");
+  root.hidden = false;
+  const prof = store.get("fruit-talk-profile", {});
+  const ans = { flow: [] };
+  const slots = new Set();
+  let step = 1;
+
+  // Department and group
+  let depts = CFG.departments || [];
+  const dSel = $("#t-dept"), zSel = $("#t-zone");
+  const fillZones = () => {
+    const d = depts.find((x) => x.name === dSel.value);
+    const zs = d ? d.zones : [];
+    const keep = zSel.value || prof.zone || "";
+    zSel.innerHTML = `<option value="">${d ? "Choose…" : "Choose a department first"}</option>` + zs.map((z) => `<option>${esc(z)}</option>`).join("");
+    zSel.disabled = !d;
+    if (zs.includes(keep)) zSel.value = keep; else if (zs.length === 1) zSel.value = zs[0];
+  };
+  const fillDepts = () => {
+    const keep = dSel.value || prof.dept || "";
+    dSel.innerHTML = `<option value="">Choose…</option>` + depts.map((d) => `<option>${esc(d.name)}</option>`).join("");
+    if (depts.some((d) => d.name === keep)) dSel.value = keep;
+    fillZones();
+  };
+  dSel.onchange = fillZones;
+  fillDepts();
+  loadDepartments().then((d) => { if (d && d.length) { depts = d; fillDepts(); } });
+  if (prof.name) $("#t-name").value = prof.name;
+
+  // Chip questions
+  $$("[data-q]", root).forEach((box) => {
+    const q = box.dataset.q, multi = !!box.dataset.multi;
+    box.setAttribute("role", "group");
+    box.innerHTML = TOOL_Q[q].map((o) => `<button type="button" class="chip" data-v="${esc(o)}" aria-pressed="false">${esc(o)}</button>`).join("");
+    $$("button", box).forEach((b) => (b.onclick = () => {
+      const v = b.dataset.v;
+      if (multi) { const a = ans[q]; a.includes(v) ? a.splice(a.indexOf(v), 1) : a.push(v); }
+      else ans[q] = v;
+      $$("button", box).forEach((x) => x.setAttribute("aria-pressed", String(multi ? ans[q].includes(x.dataset.v) : x.dataset.v === ans[q])));
+    }));
+  });
+
+  // Time grid
+  const grid = $("#t-grid");
+  grid.style.setProperty("--cols", PERIODS.length);
+  grid.innerHTML = `<span></span>` + PERIODS.map((p) => `<span class="h">${esc(p)}</span>`).join("") +
+    DAYS.map((d, i) => `<span class="d${dayClass(i)}">${esc(d)}</span>` +
+      PERIODS.map((p) => `<button type="button" class="slot" data-slot="${esc(d)}-${esc(p)}" aria-pressed="false" aria-label="${esc(d)} ${esc(p)}">${esc(d)} ${esc(p)}</button>`).join("")).join("");
+  $$(".slot", grid).forEach((b) => (b.onclick = () => {
+    const k = b.dataset.slot;
+    slots.has(k) ? slots.delete(k) : slots.add(k);
+    b.setAttribute("aria-pressed", String(slots.has(k)));
+  }));
+
+  // Steps
+  const prevBtn = $("#t-prev"), nextBtn = $("#t-next");
+  const show = (n) => {
+    step = n;
+    $$(".step", root).forEach((s) => (s.hidden = Number(s.dataset.step) !== n));
+    $$(".progress i", root).forEach((i, k) => i.classList.toggle("on", k < n));
+    prevBtn.style.visibility = n === 1 ? "hidden" : "visible";
+    nextBtn.textContent = n === 4 ? "Send request" : "Next";
+    window.scrollTo({ top: 0 });
+  };
+  const need = (el, msg) => { toast(msg, true); el.focus(); return false; };
+  const pickMsg = (q) => {
+    const box = $(`[data-q="${q}"]`, root);
+    toast("Please answer: " + clean(box.parentElement.querySelector(".lbl").textContent.replace("*", "")), true);
+    box.scrollIntoView({ block: "center", behavior: "smooth" });
+    return false;
+  };
+  const valid = (n) => {
+    if (n === 1) {
+      if (!dSel.value) return need(dSel, "Choose your department");
+      if (!zSel.value) return need(zSel, "Choose your group");
+      if (!clean($("#t-name").value)) return need($("#t-name"), "Enter your name");
+    }
+    if (n === 2) {
+      if (!clean($("#t-tool").value)) return need($("#t-tool"), "Enter the tool's name");
+      for (const q of ["toolType", "stage"]) if (!ans[q]) return pickMsg(q);
+    }
+    if (n === 3) {
+      for (const q of ["interactive", "tried", "proof", "final", "testimony"]) if (!ans[q]) return pickMsg(q);
+      if (!clean($("#t-open").value)) return need($("#t-open"), "Write your opening line");
+      if (!ans.faithWords) return pickMsg("faithWords");
+    }
+    if (n === 4) {
+      if (!clean($("#t-ask").value)) return need($("#t-ask"), "Tell us what you'd like checked");
+      if (!slots.size) { toast("Tap at least one time that works", true); return false; }
+      if (!$("#t-consent").checked) return need($("#t-consent"), "Tick the consent box to continue");
+    }
+    return true;
+  };
+  prevBtn.onclick = () => step > 1 && show(step - 1);
+  nextBtn.onclick = async () => {
+    if (!valid(step)) return;
+    if (step < 4) return show(step + 1);
+    const data = {
+      dept: dSel.value, zone: zSel.value,
+      name: clean($("#t-name").value).slice(0, 40),
+      tool: clean($("#t-tool").value).slice(0, 60),
+      use: clean($("#t-use").value).slice(0, 120),
+      ...Object.fromEntries(TOOL_REQ.map((q) => [q, ans[q]])),
+      flow: TOOL_Q.flow.filter((v) => ans.flow.includes(v)),
+      opening: clean($("#t-open").value).slice(0, 500),
+      ask: clean($("#t-ask").value).slice(0, 3000),
+      reactions: clean($("#t-react").value).slice(0, 2000),
+      slots: DAYS.flatMap((d) => PERIODS.map((p) => `${d}-${p}`)).filter((k) => slots.has(k)),
+      slotNote: clean($("#t-slotnote").value).slice(0, 300),
+      consent: true,
+    };
+    nextBtn.disabled = true; nextBtn.textContent = "Sending…";
+    try {
+      await backend.addToolCheck(data);
+      store.set("fruit-talk-profile", { dept: data.dept, zone: data.zone, name: data.name });
+      $("#t-sum").innerHTML = `
+        <div><span>From</span><b>${esc(data.name)} · ${esc(data.dept)}, ${esc(data.zone)}</b></div>
+        <div><span>Tool</span><b>${esc(data.tool)} (${esc(data.toolType)})</b></div>
+        <div><span>Times</span><span style="color:var(--ink)">${esc(slotsText(data.slots))}</span></div>`;
+      root.hidden = true;
+      $("#view-tdone").hidden = false;
+      window.scrollTo({ top: 0 });
+    } catch (e) {
+      console.error(e);
+      const code = String((e && (e.code || e.message)) || "unknown");
+      toast(code.includes("permission") ? "Couldn't send (permission-denied). The coordinator needs to update the Firebase rules." : `Couldn't send (${code}). Check your connection and tap again.`, true);
+    } finally {
+      nextBtn.disabled = false; nextBtn.textContent = "Send request";
+    }
+  };
   show(1);
 }
 
@@ -1267,5 +1421,7 @@ window.addEventListener("hashchange", () => location.reload());
   if (h === "admin") startAdmin();
   else if (h === "leader") startLeader();
   else if (h === "poster") startPoster();
-  else startApply();
+  else if (h === "fruit") startApply();
+  else if (h === "tool") startTool();
+  else $("#view-home").hidden = false;
 })();

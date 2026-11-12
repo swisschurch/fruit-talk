@@ -51,6 +51,35 @@ service cloud.firestore {
         && str(d.slotNote, 300);
     }
 
+    // Evangelism tool check: members can only create.
+    function validToolCheck() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['dept', 'zone', 'name', 'tool', 'use', 'toolType', 'stage',
+                               'interactive', 'tried', 'proof', 'final', 'flow', 'testimony',
+                               'opening', 'faithWords', 'ask', 'reactions',
+                               'slots', 'slotNote', 'consent', 'status', 'createdAt'])
+        && d.status == 'new'
+        && d.consent == true
+        && d.createdAt == request.time
+        && str(d.dept, 40) && d.dept.size() > 0
+        && str(d.zone, 40) && d.zone.size() > 0
+        && str(d.name, 40) && d.name.size() > 0
+        && str(d.tool, 60) && d.tool.size() > 0
+        && str(d.use, 120)
+        && str(d.toolType, 40) && str(d.stage, 40) && str(d.interactive, 40) && str(d.tried, 40)
+        && str(d.proof, 40) && str(d.final, 40) && str(d.testimony, 40) && str(d.faithWords, 40)
+        && d.flow is list && d.flow.size() <= 4
+        && str(d.opening, 500) && d.opening.size() > 0
+        && str(d.ask, 3000) && d.ask.size() > 0
+        && str(d.reactions, 2000)
+        && d.slots is list && d.slots.size() <= 40
+        && str(d.slotNote, 300);
+    }
+    match /toolChecks/{id} {
+      allow create: if validToolCheck();
+      allow read, update, delete: if isAdmin();
+    }
+
     // Department and group list (read by the request form)
     match /public/config {
       allow read: if true;
