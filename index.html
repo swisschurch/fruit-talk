@@ -88,6 +88,7 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .home-body{max-width:620px;margin:0 auto;padding-block:24px 40px;display:grid;gap:14px}
 .home-card{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:16px;padding:20px;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;transition:border-color .15s,transform .15s,box-shadow .15s}
 .home-card:hover,.home-card:focus-visible{border-color:var(--red);box-shadow:0 8px 24px rgba(40,10,5,.08);transform:translateY(-1px)}
+.home-card.no-ic{grid-template-columns:1fr auto}
 .home-ic{width:56px;height:56px;border-radius:12px;background:var(--red-tint);display:grid;place-items:center;font-size:28px}
 .home-t{display:grid;gap:4px}
 .home-t b{font-size:19px;font-weight:700}
@@ -362,13 +363,11 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     </div>
   </header>
   <div class="home-body gut">
-    <a class="home-card" href="#fruit">
-      <span class="home-ic" aria-hidden="true">🍎</span>
+    <a class="home-card no-ic" href="#fruit">
       <span class="home-t"><b>Fruit Consultation</b><span>Talk through someone on your heart with the coordinator and your leader</span></span>
       <span class="home-go" aria-hidden="true">→</span>
     </a>
-    <a class="home-card" href="#tool">
-      <span class="home-ic" aria-hidden="true">🧰</span>
+    <a class="home-card no-ic" href="#tool">
       <span class="home-t"><b>Evangelism Tool Check</b><span>Share your tool plan and get feedback before you use it</span></span>
       <span class="home-go" aria-hidden="true">→</span>
     </a>
