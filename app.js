@@ -654,7 +654,11 @@ const TOOL_ST = [
 ];
 const TSL = Object.fromEntries(TOOL_ST.map((s) => [s.id, s.l]));
 
+const TOOL_OPENS = new Date("2026-11-14T00:00:00").getTime();
+function toolOpen() { return Date.now() >= TOOL_OPENS || /[?&]preview=1/.test(location.search); }
+
 async function startTool() {
+  if (!toolOpen()) { location.replace("./"); return; }
   const root = $("#view-tool");
   root.hidden = false;
   const prof = store.get("fruit-talk-profile", {});
@@ -806,6 +810,7 @@ function toolSections(r) {
   </div>
   ${r.feedback ? `<div class="sec"><h4>Coordinator feedback</h4><p class="prose">${esc(r.feedback)}</p></div>` : ""}`;
 }
+const toolStore = { list: [], pick: null, onChange: null };
 function initToolChecks() {
   let tl = [], sel = null, q = "", f = "", dirty = false;
   const tpill = (s) => `<span class="pill st-${esc(s)}">${esc(TSL[s] || s)}</span>`;
@@ -814,7 +819,7 @@ function initToolChecks() {
     (!q || [r.name, r.tool, r.dept, r.zone, r.target, r.place].join(" ").toLowerCase().includes(q.toLowerCase())));
   const render = () => {
     const open = tl.filter((r) => r.status === "new").length;
-    $("#tc-n").hidden = !open; $("#tc-n").textContent = open;
+    ["#tc-n", "#tc-n-main"].forEach((s) => { $(s).hidden = !open; $(s).textContent = open; });
     const rows = visible(), el = $("#tc-list");
     if (!rows.length) el.innerHTML = `<li class="empty"><svg class="cross" width="28" height="28"><use href="#i-cross"/></svg><span>${tl.length ? "Nothing matches" : "No tool checks yet."}</span></li>`;
     else el.innerHTML = rows.map((r) => `
@@ -885,7 +890,8 @@ function initToolChecks() {
   };
   $("#tc-q").addEventListener("input", (e) => { q = e.target.value; render(); });
   $$("#tc-f button").forEach((b) => (b.onclick = () => { f = b.dataset.f; $$("#tc-f button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); render(); }));
-  backend.watchTools((l) => { tl = l; render(); }, (e) => { console.error(e); toast("Couldn't load tool checks: " + (e.code || e.message), true); });
+  toolStore.pick = (id) => { sel = id; dirty = false; render(); $("#tc-detail").classList.remove("closed"); };
+  backend.watchTools((l) => { tl = l; toolStore.list = l; render(); toolStore.onChange && toolStore.onChange(); }, (e) => { console.error(e); toast("Couldn't load tool checks: " + (e.code || e.message), true); });
 }
 
 // =====================================================================
@@ -908,15 +914,24 @@ async function initAdmin() {
   let depts = await loadDepartments();
   let leaders = await backend.getLeaders().catch(() => ({}));
 
-  const tabs = $$("#ad-tabs .tab");
+  // Main menu (Requests / Schedule / Admin) with sub-tabs underneath
+  const MAIN_OF = { board: "requests", tools: "requests", "schedule:fruit": "schedule", "schedule:tool": "schedule", settings: "admin", poster: "admin" };
+  const lastSub = { requests: "board", schedule: "schedule:fruit", admin: "settings" };
   const openTab = (t) => {
-    tabs.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
-    $$("#ad-main [data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== t));
+    if (t === "schedule") t = lastSub.schedule;
+    const main = MAIN_OF[t] || "requests";
+    lastSub[main] = t;
+    $$("#ad-tabs .tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.main === main)));
+    $$("#ad-sub [data-sub]").forEach((g) => (g.hidden = g.dataset.sub !== main));
+    $$("#ad-sub [data-tab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === t)));
+    const pane = t.startsWith("schedule") ? "schedule" : t;
+    $$("#ad-main [data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== pane));
     if (t === "settings") renderSettings();
     if (t === "poster") renderPosterPane();
-    if (t === "schedule") renderSchedule();
+    if (pane === "schedule") { calMode = t === "schedule:tool" ? "tool" : "fruit"; renderSchedule(); }
   };
-  tabs.forEach((b) => (b.onclick = () => openTab(b.dataset.tab)));
+  $$("#ad-tabs .tab").forEach((b) => (b.onclick = () => openTab(lastSub[b.dataset.main])));
+  $$("#ad-sub [data-tab]").forEach((b) => (b.onclick = () => openTab(b.dataset.tab)));
 
   const leaderOptions = () => {
     const m = {};
@@ -1011,6 +1026,13 @@ async function initAdmin() {
   const DAY = 864e5;
   const mondayOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
   let calStart = mondayOf(Date.now());
+  let calMode = "fruit";
+  const calSrc = () => calMode === "tool"
+    ? { rows: toolStore.list, upd: (id, p) => backend.updateTool(id, p), sub: (r) => r.tool, title: "Tool check schedule", imgTitle: "Evangelism Tool Check · Schedule",
+        tray: (r) => !r.scheduledAt && r.discuss && r.status === "new", lock: (r) => r.status === "done", fu: () => false, lbl: (s) => TSL[s] || s }
+    : { rows: list, upd: (id, p) => backend.updateRequest(id, p), sub: (r) => r.fruit, title: "Feedback schedule", imgTitle: "Fruit Consultation · Feedback schedule",
+        tray: (r) => !r.scheduledAt && (r.status === "new" || r.status === "sched"), lock: (r) => r.status === "done" || r.status === "follow", fu: (r) => r.kind === "again", lbl: (s) => SL[s] };
+  toolStore.onChange = () => { if (!$('[data-pane="schedule"]').hidden && calMode === "tool") renderSchedule(); };
   const pad2 = (n) => String(n).padStart(2, "0");
   const hm = (t) => { const d = new Date(t); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
   const dayLbl = (t) => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -1021,11 +1043,13 @@ async function initAdmin() {
     const weeks = $("#cal-weeks");
     const end = calStart + 14 * DAY;
     $("#cal-range").textContent = `${new Date(calStart).toLocaleDateString("en-GB", { day: "numeric", month: "long" })} – ${new Date(end - DAY).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`;
-    const evs = list.filter((r) => r.scheduledAt && r.status !== "closed");
-    const tray = list.filter((r) => !r.scheduledAt && (r.status === "new" || r.status === "sched"));
+    const S = calSrc();
+    $("#cal-title").textContent = S.title;
+    const evs = S.rows.filter((r) => r.scheduledAt && r.status !== "closed");
+    const tray = S.rows.filter(S.tray);
     $("#cal-tray-n").textContent = `· ${tray.length}`;
     $("#cal-tray").innerHTML = tray.length
-      ? tray.map((r) => `<span class="cal-chip${r.kind === "again" ? " fu" : ""}" data-id="${esc(r.id)}"><b>${esc(r.name)}</b><small>${esc(r.fruit)}</small></span>`).join("")
+      ? tray.map((r) => `<span class="cal-chip${S.fu(r) ? " fu" : ""}" data-id="${esc(r.id)}"><b>${esc(r.name)}</b><small>${esc(S.sub(r))}</small></span>`).join("")
       : `<span style="color:var(--muted);font-size:14px">Everyone has a time.</span>`;
     const today = new Date().setHours(0, 0, 0, 0);
     const H = (CAL.to - CAL.from) * CAL.hh;
@@ -1051,27 +1075,30 @@ async function initAdmin() {
         mine.forEach((r, i) => {
           const d0 = new Date(r.scheduledAt);
           const top = Math.max(0, (d0.getHours() + d0.getMinutes() / 60 - CAL.from) * CAL.hh);
-          const lock = r.status === "done" || r.status === "follow";
-          html += `<div class="cal-ev${r.kind === "again" ? " fu" : ""}${lock ? " done" : ""}" data-id="${esc(r.id)}" title="${esc(r.name)} · ${esc(r.fruit)}${r.place ? " · " + esc(r.place) : ""}"
+          const lock = S.lock(r);
+          html += `<div class="cal-ev${S.fu(r) ? " fu" : ""}${lock ? " done" : ""}" data-id="${esc(r.id)}" title="${esc(r.name)} · ${esc(S.sub(r))}${(r.place || r.meetPlace) && calMode === "fruit" ? " · " + esc(r.place) : r.meetPlace ? " · " + esc(r.meetPlace) : ""}"
             style="top:${top + 1}px;height:${(DUR / 60) * CAL.hh - 3}px;left:calc(${(100 / n) * pos[i]}% + 4px);width:calc(${100 / n}% - 8px)">
-            <span class="t">${hm(r.scheduledAt)}–${hm(r.scheduledAt + DUR * 6e4)}${lock ? " · " + esc(SL[r.status]) : ""}</span><span class="n">${esc(r.name)}</span><span class="f">${esc(r.fruit)}</span></div>`;
+            <span class="t">${hm(r.scheduledAt)}–${hm(r.scheduledAt + DUR * 6e4)}${lock ? " · " + esc(S.lbl(r.status)) : ""}</span><span class="n">${esc(r.name)}</span><span class="f">${esc(S.sub(r))}</span></div>`;
         });
         html += `</div>`;
       }
       html += `</div></div>`;
     }
-    html += `<div class="cal-legend"><span><i style="background:var(--red-tint);border-left:4px solid var(--red)"></i>First request</span><span><i style="background:#fff;border:1.5px solid var(--red);border-left-width:4px"></i>Follow-up request</span><span><i style="background:var(--mist);border-left:4px solid var(--muted)"></i>Already consulted (fixed)</span></div>`;
+    html += `<div class="cal-legend"><span><i style="background:var(--red-tint);border-left:4px solid var(--red)"></i>First request</span><span><i style="background:#fff;border:1.5px solid var(--red);border-left-width:4px"></i>Follow-up request</span><span><i style="background:var(--mist);border-left:4px solid var(--muted)"></i>${calMode === "tool" ? "Feedback given (fixed)" : "Already consulted (fixed)"}</span></div>`;
     weeks.innerHTML = html;
     $$(".cal-ev:not(.done), .cal-chip", $('[data-pane="schedule"]')).forEach((el) => el.addEventListener("pointerdown", calDown));
     $$(".cal-ev.done", weeks).forEach((el) => (el.onclick = () => openReq(el.dataset.id)));
   }
-  const openReq = (id) => { openTab("board"); filter = null; pick(id); };
+  const openReq = (id) => {
+    if (calMode === "tool") { openTab("tools"); toolStore.pick && toolStore.pick(id); return; }
+    openTab("board"); filter = null; pick(id);
+  };
 
   let calDrag = null;
   function calDown(e) {
     if (e.button !== 0) return;
     const el = e.currentTarget;
-    const r = list.find((x) => x.id === el.dataset.id);
+    const r = calSrc().rows.find((x) => x.id === el.dataset.id);
     if (!r) return;
     const box = el.getBoundingClientRect();
     calDrag = { el, r, x0: e.clientX, y0: e.clientY, dx: e.clientX - box.left, dy: el.classList.contains("cal-chip") ? 8 : e.clientY - box.top, moved: false, ghost: null, float: null, target: null, chip: el.classList.contains("cal-chip") };
@@ -1126,16 +1153,17 @@ async function initAdmin() {
     calCleanup();
     if (!moved) { openReq(r.id); return; }
     if (!target || target.t === r.scheduledAt) { renderSchedule(); return; }
+    const S = calSrc(), tool = calMode === "tool";
     const prevT = r.scheduledAt || null, prevSt = r.status;
     const patch = { scheduledAt: target.t };
-    if (chip || r.status === "new" || r.status === "sched") { patch.status = "set"; patch.history = [...(r.history || []), { at: Date.now(), status: "set", by: "Coordinator" }]; }
+    if (chip || r.status === "new" || r.status === "sched") { patch.status = "set"; if (!tool) patch.history = [...(r.history || []), { at: Date.now(), status: "set", by: "Coordinator" }]; }
     el.classList.add("saving");
     try {
-      await backend.updateRequest(r.id, patch);
-      toastUndo(`${r.name} · ${r.fruit} → ${new Date(target.t).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${hm(target.t)}`, async () => {
+      await S.upd(r.id, patch);
+      toastUndo(`${r.name} · ${S.sub(r)} → ${new Date(target.t).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${hm(target.t)}`, async () => {
         const back = { scheduledAt: prevT };
-        if (patch.status) { back.status = prevSt; back.history = r.history || []; }
-        try { await backend.updateRequest(r.id, back); toast("Moved back"); } catch (e) { toast("Couldn't undo: " + (e.code || e.message), true); }
+        if (patch.status) { back.status = prevSt; if (!tool) back.history = r.history || []; }
+        try { await S.upd(r.id, back); toast("Moved back"); } catch (e) { toast("Couldn't undo: " + (e.code || e.message), true); }
       });
     } catch (e) { console.error(e); toast("Couldn't move: " + (e.code || e.message), true); renderSchedule(); }
   }
@@ -1166,7 +1194,8 @@ async function initAdmin() {
     const FONT = getComputedStyle(document.body).fontFamily;
     const NUM = getComputedStyle(document.documentElement).getPropertyValue("--num").trim() || FONT;
     const end = calStart + 14 * DAY;
-    const evs = list.filter((r) => r.scheduledAt >= calStart && r.scheduledAt < end && r.status !== "closed");
+    const S = calSrc();
+    const evs = S.rows.filter((r) => r.scheduledAt >= calStart && r.scheduledAt < end && r.status !== "closed");
     let h0 = 10, h1 = 21;
     evs.forEach((r) => { const d = new Date(r.scheduledAt); const s = d.getHours() + d.getMinutes() / 60; h0 = Math.min(h0, Math.floor(s)); h1 = Math.max(h1, Math.ceil(s + DUR / 60)); });
     const W = 1920, PADX = 44, TW = 70, HH = 74, colW = (W - PADX * 2 - TW) / 7;
@@ -1183,7 +1212,7 @@ async function initAdmin() {
     let y = 36;
     g.fillStyle = C.red; rr(PADX, y, 44, 44, 5); g.fill();
     g.fillStyle = "#fff"; const k = 44 / 32; g.fillRect(PADX + 13 * k, y + 6 * k, 6 * k, 20 * k); g.fillRect(PADX + 6 * k, y + 13 * k, 20 * k, 6 * k);
-    g.fillStyle = C.ink; f(700, 34); g.textBaseline = "middle"; g.fillText("Fruit Consultation · Feedback schedule", PADX + 60, y + 23);
+    g.fillStyle = C.ink; f(700, 34); g.textBaseline = "middle"; g.fillText(S.imgTitle, PADX + 60, y + 23);
     g.textAlign = "right"; f(700, 18); g.fillText(`${new Date(calStart).toLocaleDateString("en-GB", { day: "numeric", month: "long" })} – ${new Date(end - DAY).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`, W - PADX, y + 10);
     g.fillStyle = C.muted; f(400, 17); g.fillText(`${evs.length} session${evs.length === 1 ? "" : "s"} · 1 hour each`, W - PADX, y + 36);
     g.textAlign = "left";
@@ -1221,15 +1250,15 @@ async function initAdmin() {
         mine.forEach((r, j) => {
           const d = new Date(r.scheduledAt), s = d.getHours() + d.getMinutes() / 60;
           const x = PADX + TW + colW * i + 6 + lw * pos[j], ey = y + (s - h0) * HH + 2, ew = lw - (n > 1 ? 4 : 0), eh = (DUR / 60) * HH - 4;
-          const fu = r.kind === "again", done = r.status === "done" || r.status === "follow";
+          const fu = S.fu(r), done = S.lock(r);
           g.fillStyle = done ? C.mist : fu ? "#fff" : C.tint; rr(x, ey, ew, eh, 10); g.fill();
           if (fu && !done) { g.strokeStyle = C.red; g.lineWidth = 1.5; rr(x + .75, ey + .75, ew - 1.5, eh - 1.5, 10); g.stroke(); }
           g.save(); rr(x, ey, ew, eh, 10); g.clip(); g.fillStyle = done ? C.muted : C.red; g.fillRect(x, ey, 6, eh); g.restore();
           const tx = x + 16, mw = ew - 24;
           g.textBaseline = "top";
-          g.fillStyle = done ? C.muted : C.deep; f(700, 14, NUM); g.fillText(fit(`${hm(r.scheduledAt)}–${hm(r.scheduledAt + DUR * 6e4)}${done ? " · " + SL[r.status] : ""}`, mw), tx, ey + 9);
+          g.fillStyle = done ? C.muted : C.deep; f(700, 14, NUM); g.fillText(fit(`${hm(r.scheduledAt)}–${hm(r.scheduledAt + DUR * 6e4)}${done ? " · " + S.lbl(r.status) : ""}`, mw), tx, ey + 9);
           g.fillStyle = C.ink; f(700, 17); g.fillText(fit(r.name, mw), tx, ey + 27);
-          g.fillStyle = C.ink2; f(400, 15); g.fillText(fit(r.fruit, mw), tx, ey + 48);
+          g.fillStyle = C.ink2; f(400, 15); g.fillText(fit(S.sub(r), mw), tx, ey + 48);
           g.textBaseline = "middle";
         });
       });
@@ -1244,7 +1273,7 @@ async function initAdmin() {
     const blob = await new Promise((res) => c.toBlob(res, "image/png"));
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    { const d = new Date(calStart); a.download = `Feedback_Schedule_${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.png`; }
+    { const d = new Date(calStart); a.download = `${calMode === "tool" ? "Tool_Check_Schedule" : "Feedback_Schedule"}_${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.png`; }
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     toast("Image saved");
@@ -1532,4 +1561,9 @@ window.addEventListener("hashchange", () => location.reload());
   else if (h === "fruit") startApply();
   else if (h === "tool") startTool();
   else $("#view-home").hidden = false;
+  if (!toolOpen()) {
+    const c = $("#home-tool");
+    c.classList.add("locked"); c.setAttribute("aria-disabled", "true"); c.tabIndex = -1; c.removeAttribute("href");
+    $("b", c).insertAdjacentHTML("beforeend", ' <span class="soon">Opens Sat 14 Nov</span>');
+  }
 })();

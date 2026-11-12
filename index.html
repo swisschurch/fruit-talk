@@ -88,6 +88,13 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .home-body{max-width:620px;margin:0 auto;padding-block:24px 40px;display:grid;gap:14px}
 .home-card{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:16px;padding:20px;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;transition:border-color .15s,transform .15s,box-shadow .15s}
 .home-card:hover,.home-card:focus-visible{border-color:var(--red);box-shadow:0 8px 24px rgba(40,10,5,.08);transform:translateY(-1px)}
+.home-card.locked{opacity:.55;pointer-events:none;cursor:default;background:var(--mist)}
+.home-card.locked .home-go{display:none}
+.soon{display:table;margin:8px 0 2px;padding:2px 8px;border-radius:999px;background:var(--ink);color:#fff;font-size:12px;font-weight:700;vertical-align:3px}
+.subnav{display:flex;gap:6px;flex-wrap:wrap}
+.subnav>div{display:flex;gap:6px;flex-wrap:wrap}
+.subnav button{min-height:38px;padding:0 14px;border:1.5px solid var(--line-2);background:var(--paper);border-radius:999px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-2);display:inline-flex;align-items:center;gap:4px}
+.subnav button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
 .home-card.no-ic{grid-template-columns:1fr auto}
 .home-ic{width:56px;height:56px;border-radius:12px;background:var(--red-tint);display:grid;place-items:center;font-size:28px}
 .home-t{display:grid;gap:4px}
@@ -367,7 +374,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
       <span class="home-t"><b>Fruit Consultation</b><span>Talk through someone on your heart with the coordinator and your leader</span></span>
       <span class="home-go" aria-hidden="true">→</span>
     </a>
-    <a class="home-card no-ic" href="#tool">
+    <a class="home-card no-ic" href="#tool" id="home-tool">
       <span class="home-t"><b>Evangelism Tool Check</b><span>Share your tool plan and get feedback before you use it</span></span>
       <span class="home-go" aria-hidden="true">→</span>
     </a>
@@ -600,11 +607,9 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
   <header class="topbar"><div class="in gut">
     <div class="title"><svg class="cross" width="28" height="28"><use href="#i-cross"/></svg>Fruit Consultation <small>Coordinator</small></div>
     <nav class="tabs" role="tablist" id="ad-tabs" hidden>
-      <button class="tab" role="tab" data-tab="board" aria-selected="true">Requests</button>
-      <button class="tab" role="tab" data-tab="schedule" aria-selected="false">Schedule</button>
-      <button class="tab" role="tab" data-tab="tools" aria-selected="false">Tool checks <span class="tab-n" id="tc-n" hidden></span></button>
-      <button class="tab" role="tab" data-tab="settings" aria-selected="false">Groups &amp; leaders</button>
-      <button class="tab" role="tab" data-tab="poster" aria-selected="false">QR poster</button>
+      <button class="tab" role="tab" data-main="requests" aria-selected="true">Requests <span class="tab-n" id="tc-n-main" hidden></span></button>
+      <button class="tab" role="tab" data-main="schedule" aria-selected="false">Schedule</button>
+      <button class="tab" role="tab" data-main="admin" aria-selected="false">Admin</button>
     </nav>
     <div class="who"><span class="js-who"></span><button class="btn sm ghost js-signout" hidden>Sign out</button></div>
   </div></header>
@@ -619,6 +624,11 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
 
   <div class="wrap gut" id="ad-main" hidden>
     <!-- Requests -->
+    <nav class="subnav" id="ad-sub" aria-label="Section">
+      <div data-sub="requests"><button type="button" data-tab="board" aria-pressed="true">Fruit Consultation</button><button type="button" data-tab="tools" aria-pressed="false">Tool Check <span class="tab-n" id="tc-n" hidden></span></button></div>
+      <div data-sub="schedule" hidden><button type="button" data-tab="schedule:fruit" aria-pressed="true">Fruit Consultation</button><button type="button" data-tab="schedule:tool" aria-pressed="false">Tool Check</button></div>
+      <div data-sub="admin" hidden><button type="button" data-tab="settings" aria-pressed="true">Groups &amp; leaders</button><button type="button" data-tab="poster" aria-pressed="false">QR poster</button></div>
+    </nav>
     <section data-pane="board" class="set-grid">
       <div class="pipe" id="ad-pipe"></div>
       <div class="panel bulk" id="ad-bulk" hidden>
@@ -647,7 +657,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <!-- Schedule -->
     <section data-pane="schedule" class="set-grid" hidden>
       <div class="panel cal-bar">
-        <h3>Feedback schedule</h3>
+        <h3 id="cal-title">Feedback schedule</h3>
         <span class="cal-range num" id="cal-range"></span>
         <span class="spacer"></span>
         <button class="btn sm" id="cal-prev" type="button" aria-label="Previous week">←</button>
@@ -655,7 +665,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
         <button class="btn sm" id="cal-next" type="button" aria-label="Next week">→</button>
         <button class="btn sm primary" id="cal-png" type="button">Save image</button>
       </div>
-      <p class="cal-help">Drag a meeting to another day or time to move it (15-minute steps). Drag a name from <b>Not scheduled yet</b> onto the calendar to book it. Click a meeting to open the request.</p>
+      <p class="cal-help">Drag a meeting to another day or time to move it (15-minute steps). Drag a name from <b>Not scheduled yet</b> onto the calendar to book it. Click a meeting to open it.</p>
       <div class="panel cal-tray"><div class="cal-tray-h">Not scheduled yet <span id="cal-tray-n"></span></div><div class="cal-chips" id="cal-tray"></div></div>
       <div id="cal-weeks" class="set-grid"></div>
     </section>
