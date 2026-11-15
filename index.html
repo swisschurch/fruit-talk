@@ -514,16 +514,16 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <div class="chips" id="f-rel-chips" role="group" aria-label="Your relationship"></div>
           <input id="f-rel-etc" class="inp" maxlength="40" placeholder="Describe the relationship" hidden>
         </div>
-        <div class="field">
-          <label for="f-how">How did you get connected?<span class="req">*</span></label>
+        <div class="field js-first-only">
+          <label for="f-how">How did you get connected?</label>
           <textarea id="f-how" class="inp" maxlength="1500" placeholder="e.g. We've worked on the same team for two years and often have lunch together."></textarea>
         </div>
-        <div class="grid2">
-          <div class="field"><label for="f-job">Occupation<span class="req">*</span></label><input id="f-job" class="inp" maxlength="60" placeholder="e.g. Nurse, student"></div>
-          <div class="field"><label for="f-age">Age<span class="req">*</span></label><input id="f-age" class="inp" maxlength="12" inputmode="numeric" placeholder="e.g. 28 or about 30"></div>
+        <div class="grid2 js-first-only">
+          <div class="field"><label for="f-job">Occupation</label><input id="f-job" class="inp" maxlength="60" placeholder="e.g. Nurse, student"></div>
+          <div class="field"><label for="f-age">Age</label><input id="f-age" class="inp" maxlength="12" inputmode="numeric" placeholder="e.g. 28 or about 30"></div>
         </div>
-        <div class="field"><label for="f-home">Where they live<span class="req">*</span></label><input id="f-home" class="inp" maxlength="60" placeholder="e.g. Zurich, Kreis 4"></div>
-        <div class="field">
+        <div class="field js-first-only"><label for="f-home">Where they live</label><input id="f-home" class="inp" maxlength="60" placeholder="e.g. Zurich, Kreis 4"></div>
+        <div class="field js-first-only">
           <span class="lbl">Are they a believer?<span class="req">*</span></span>
           <div class="chips" id="f-faith" role="group" aria-label="Are they a believer?"></div>
         </div>
@@ -546,12 +546,12 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <div class="chips" id="f-scj" role="group" aria-label="Do they know about Shincheonji?"></div>
         </div>
         <div class="field js-scj-yes" hidden>
-          <label for="f-scj-how">How did they find out?<span class="req">*</span></label>
+          <label for="f-scj-how">How did they find out?</label>
           <textarea id="f-scj-how" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Read about it online after a Bible study"></textarea>
         </div>
-        <div class="field js-before" hidden><label for="f-leaf">Who was the leaf and BBT?<span class="req">*</span></label><input id="f-leaf" class="inp" maxlength="80" placeholder="e.g. Leaf: Anna K. · BBT: Daniel L."></div>
+        <div class="field js-before" hidden><label for="f-leaf">Who was the leaf and BBT?</label><input id="f-leaf" class="inp" maxlength="80" placeholder="e.g. Leaf: Anna K. · BBT: Daniel L."></div>
         <div class="field js-before" hidden>
-          <label for="f-now">How is your relationship now?<span class="req">*</span></label>
+          <label for="f-now">How is your relationship now?</label>
           <textarea id="f-now" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Still friendly, we meet once a month"></textarea>
         </div>
         <div class="field">
@@ -574,7 +574,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <span class="lbl">Tap every time that works for you<span class="req">*</span></span>
           <div class="tgrid-wrap"><div class="tgrid" id="f-grid"></div></div>
         </div>
-        <div class="field"><label for="f-slotnote">Note on timing<span class="req">*</span></label><span class="hint">If any time you ticked is fine, just write "Any of these times"</span><input id="f-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
+        <div class="field"><label for="f-slotnote">Note on timing</label><input id="f-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
         <label class="consent"><input type="checkbox" id="f-consent"><span>I agree that the coordinator and my group leader may read this.<small>So we can pray and care for this person together.</small></span></label>
       </div>
     </section>

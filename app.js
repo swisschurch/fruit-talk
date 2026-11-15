@@ -285,17 +285,17 @@ function requestSections(r, list) {
     <dl class="kv">
       <dt>Name</dt><dd><b>${esc(r.fruit)}</b></dd>
       <dt>Relationship</dt><dd>${esc(r.relation || "–")}</dd>
-      ${r.kind === "again" && !r.howMet ? "" : `<dt>How connected</dt><dd>${esc(r.howMet || "–")}</dd>`}
+      ${r.kind === "again" ? "" : `<dt>How connected</dt><dd>${esc(r.howMet || "–")}</dd>`}
       ${r.job ? `<dt>Occupation</dt><dd>${esc(r.job)}</dd>` : ""}
       ${r.age ? `<dt>Age</dt><dd>${esc(r.age)}</dd>` : ""}
       ${r.home ? `<dt>Lives in</dt><dd>${esc(r.home)}</dd>` : ""}
       ${r.faith ? `<dt>Believer</dt><dd>${esc(r.faith)}</dd>` : ""}
     </dl>
   </div>
-  ${r.prior || r.knowsScj ? `<div class="sec">
+  ${r.prior ? `<div class="sec">
     <h4>History</h4>
     <dl class="kv">
-      ${r.prior ? `<dt>Progressed</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>` : ""}
+      <dt>Progressed</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>
       <dt>Knows SCJ</dt><dd>${esc((SCJ.find((x) => x[0] === r.knowsScj) || [, "–"])[1])}</dd>
       ${r.scjHow ? `<dt>How they knew</dt><dd>${esc(r.scjHow)}</dd>` : ""}
       ${r.leaf ? `<dt>Leaf &amp; BBT</dt><dd>${esc(r.leaf)}</dd>` : ""}
@@ -536,10 +536,9 @@ async function startApply() {
   const syncHist = () => {
     $$("[data-hist]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.hist === hist)));
     const first = kind === "first", before = first && hist === "before";
-    const showScj = !first || !!hist;
-    $$(".js-picked").forEach((el) => (el.hidden = !showScj));
+    $$(".js-picked").forEach((el) => (el.hidden = !(first && hist)));
     $$(".js-before").forEach((el) => (el.hidden = !before));
-    $$(".js-scj-yes").forEach((el) => (el.hidden = !(showScj && scj === "yes")));
+    $$(".js-scj-yes").forEach((el) => (el.hidden = !(first && hist && scj === "yes")));
     if (first) {
       $("#f-prog-l").innerHTML = (before ? "Please describe how you progressed this fruit in detail" : "What has happened so far?") + '<span class="req">*</span>';
       $("#f-prog-h").textContent = before ? "What you did, how they responded, and where it stopped" : "Every conversation matters. Please write in detail.";
@@ -581,26 +580,16 @@ async function startApply() {
       if (!clean($("#f-fruit").value)) return need($("#f-fruit"), "Enter your fruit's initials or a nickname");
       if (!relation) { toast("Choose your relationship", true); return false; }
       if (relation === OTHER && !clean(etc.value)) return need(etc, "Describe the relationship");
-      if (!clean($("#f-how").value)) return need($("#f-how"), "Tell us how you got connected");
-      if (!clean($("#f-job").value)) return need($("#f-job"), "Enter their occupation");
-      if (!clean($("#f-age").value)) return need($("#f-age"), "Enter their age (an estimate is fine)");
-      if (!clean($("#f-home").value)) return need($("#f-home"), "Enter where they live");
-      if (!faith) { toast("Choose whether they are a believer", true); return false; }
+      if (kind === "first" && !faith) { toast("Choose whether they are a believer", true); return false; }
     }
     if (n === 3) {
       if (kind === "first" && !hist) { toast("Choose New fruit or Worked with before", true); return false; }
-      if (!scj) { toast("Choose whether they know about Shincheonji", true); return false; }
-      if (scj === "yes" && !clean($("#f-scj-how").value)) return need($("#f-scj-how"), "Tell us how they found out");
-      if (kind === "first" && hist === "before") {
-        if (!clean($("#f-leaf").value)) return need($("#f-leaf"), "Tell us who the leaf and BBT were");
-        if (!clean($("#f-now").value)) return need($("#f-now"), "Tell us how your relationship is now");
-      }
+      if (kind === "first" && !scj) { toast("Choose whether they know about Shincheonji", true); return false; }
       if (!clean($("#f-prog").value)) return need($("#f-prog"), "Tell us what has happened so far");
       if (!clean($("#f-diff").value)) return need($("#f-diff"), "Tell us what you're finding difficult");
     }
     if (n === 4) {
       if (!slots.size) { toast("Tap at least one time that works", true); return false; }
-      if (!clean($("#f-slotnote").value)) return need($("#f-slotnote"), "Add a note on timing (e.g. \"Any of these times\")");
       if (!$("#f-consent").checked) return need($("#f-consent"), "Tick the consent box to continue");
     }
     return true;
@@ -616,14 +605,14 @@ async function startApply() {
       name: clean($("#f-name").value).slice(0, 40),
       fruit: clean($("#f-fruit").value).slice(0, 40),
       relation: (relation === OTHER ? clean(etc.value) : relation).slice(0, 40),
-      howMet: clean($("#f-how").value).slice(0, 1500),
-      job: clean($("#f-job").value).slice(0, 60),
-      age: clean($("#f-age").value).slice(0, 12),
-      home: clean($("#f-home").value).slice(0, 60),
-      faith,
+      howMet: kind === "again" ? "" : clean($("#f-how").value).slice(0, 1500),
+      job: first ? clean($("#f-job").value).slice(0, 60) : "",
+      age: first ? clean($("#f-age").value).slice(0, 12) : "",
+      home: first ? clean($("#f-home").value).slice(0, 60) : "",
+      faith: first ? faith : "",
       prior: first ? hist : "",
-      knowsScj: scj,
-      scjHow: scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
+      knowsScj: first ? scj : "",
+      scjHow: first && scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
       leaf: before ? clean($("#f-leaf").value).slice(0, 80) : "",
       relNow: before ? clean($("#f-now").value).slice(0, 1500) : "",
       progress: clean($("#f-prog").value).slice(0, 4000),
