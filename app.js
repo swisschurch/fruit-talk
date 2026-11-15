@@ -285,17 +285,17 @@ function requestSections(r, list) {
     <dl class="kv">
       <dt>Name</dt><dd><b>${esc(r.fruit)}</b></dd>
       <dt>Relationship</dt><dd>${esc(r.relation || "–")}</dd>
-      ${r.kind === "again" ? "" : `<dt>How connected</dt><dd>${esc(r.howMet || "–")}</dd>`}
+      ${r.kind === "again" && !r.howMet ? "" : `<dt>How connected</dt><dd>${esc(r.howMet || "–")}</dd>`}
       ${r.job ? `<dt>Occupation</dt><dd>${esc(r.job)}</dd>` : ""}
       ${r.age ? `<dt>Age</dt><dd>${esc(r.age)}</dd>` : ""}
       ${r.home ? `<dt>Lives in</dt><dd>${esc(r.home)}</dd>` : ""}
       ${r.faith ? `<dt>Believer</dt><dd>${esc(r.faith)}</dd>` : ""}
     </dl>
   </div>
-  ${r.prior ? `<div class="sec">
+  ${r.prior || r.knowsScj ? `<div class="sec">
     <h4>History</h4>
     <dl class="kv">
-      <dt>Progressed</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>
+      ${r.prior ? `<dt>Progressed</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>` : ""}
       <dt>Knows SCJ</dt><dd>${esc((SCJ.find((x) => x[0] === r.knowsScj) || [, "–"])[1])}</dd>
       ${r.scjHow ? `<dt>How they knew</dt><dd>${esc(r.scjHow)}</dd>` : ""}
       ${r.leaf ? `<dt>Leaf &amp; BBT</dt><dd>${esc(r.leaf)}</dd>` : ""}
@@ -326,6 +326,21 @@ function requestSections(r, list) {
   </div>` : ""}`;
 }
 
+// Shovel icon (Tool Check), drawn in a 32x32 box
+const SHOVEL = {
+  grip: "M11 2.5h10a1.5 1.5 0 0 1 0 3h-10a1.5 1.5 0 0 1 0-3z",
+  shaft: "M14.8 5h2.4v12h-2.4z",
+  blade: "M9.5 16.5h13v6.5c0 4.2-3.2 7.4-6.5 8.5-3.3-1.1-6.5-4.3-6.5-8.5z",
+  shine: "M12 19h2v4.5c0 1.6 .8 3 1.8 4-1.9-.7-3.8-2.4-3.8-4.8z",
+};
+const shovelSvg = (size) => `<svg width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true"><g transform="rotate(35 16 16)"><path d="${SHOVEL.grip}" fill="#8A5428"/><path d="${SHOVEL.shaft}" fill="#B87A3D"/><path d="${SHOVEL.blade}" fill="#8F9AA6"/><path d="${SHOVEL.shine}" fill="#C9D1D9"/></g></svg>`;
+function drawShovel(g, x, y, size) {
+  g.save(); g.translate(x, y); g.scale(size / 32, size / 32);
+  g.translate(16, 16); g.rotate((35 * Math.PI) / 180); g.translate(-16, -16);
+  [["grip", "#8A5428"], ["shaft", "#B87A3D"], ["blade", "#8F9AA6"], ["shine", "#C9D1D9"]].forEach(([k, c]) => { g.fillStyle = c; g.fill(new Path2D(SHOVEL[k])); });
+  g.restore();
+}
+
 // Save one request (header + sections) as a PNG
 function bindSaveImg(box, r) {
   const b = $(".js-save-img", box);
@@ -347,7 +362,7 @@ async function saveRequestImage(box, r, btn) {
   card.style.cssText = "position:fixed;left:-10000px;top:0;width:760px;background:#fff;color:var(--ink);padding:28px 32px 20px;font-family:var(--kr)";
   card.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:3px solid var(--red)">
-      <svg width="30" height="30" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#DA291C"/><path fill="#fff" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/></svg>
+      ${r._file === "Tool" ? shovelSvg(30) : `<svg width="30" height="30" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#DA291C"/><path fill="#fff" d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z"/></svg>`}
       <div style="display:grid;gap:2px">
         <b style="font-size:22px;line-height:1.2">${esc(r.name)} <span style="color:var(--muted);font-weight:500;font-size:15px">${esc(r.dept)} · ${esc(r.zone)}</span>${r.kind === "again" ? ' <span class="tag">Follow-up</span>' : ""}</b>
         <span style="font-size:13px;color:var(--muted)">${esc(r._title || "Fruit Consultation")} · Requested ${esc(fmtDT(r.createdAt))}${r.scheduledAt ? " · Meeting <b style=\"color:var(--ink)\">" + esc(fmtDT(r.scheduledAt)) + "</b>" : ""}${r.place ? " · " + esc(r.place) : ""}</span>
@@ -521,9 +536,10 @@ async function startApply() {
   const syncHist = () => {
     $$("[data-hist]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.hist === hist)));
     const first = kind === "first", before = first && hist === "before";
-    $$(".js-picked").forEach((el) => (el.hidden = !(first && hist)));
+    const showScj = !first || !!hist;
+    $$(".js-picked").forEach((el) => (el.hidden = !showScj));
     $$(".js-before").forEach((el) => (el.hidden = !before));
-    $$(".js-scj-yes").forEach((el) => (el.hidden = !(first && hist && scj === "yes")));
+    $$(".js-scj-yes").forEach((el) => (el.hidden = !(showScj && scj === "yes")));
     if (first) {
       $("#f-prog-l").innerHTML = (before ? "Please describe how you progressed this fruit in detail" : "What has happened so far?") + '<span class="req">*</span>';
       $("#f-prog-h").textContent = before ? "What you did, how they responded, and where it stopped" : "Every conversation matters. Please write in detail.";
@@ -565,16 +581,26 @@ async function startApply() {
       if (!clean($("#f-fruit").value)) return need($("#f-fruit"), "Enter your fruit's initials or a nickname");
       if (!relation) { toast("Choose your relationship", true); return false; }
       if (relation === OTHER && !clean(etc.value)) return need(etc, "Describe the relationship");
-      if (kind === "first" && !faith) { toast("Choose whether they are a believer", true); return false; }
+      if (!clean($("#f-how").value)) return need($("#f-how"), "Tell us how you got connected");
+      if (!clean($("#f-job").value)) return need($("#f-job"), "Enter their occupation");
+      if (!clean($("#f-age").value)) return need($("#f-age"), "Enter their age (an estimate is fine)");
+      if (!clean($("#f-home").value)) return need($("#f-home"), "Enter where they live");
+      if (!faith) { toast("Choose whether they are a believer", true); return false; }
     }
     if (n === 3) {
       if (kind === "first" && !hist) { toast("Choose New fruit or Worked with before", true); return false; }
-      if (kind === "first" && !scj) { toast("Choose whether they know about Shincheonji", true); return false; }
+      if (!scj) { toast("Choose whether they know about Shincheonji", true); return false; }
+      if (scj === "yes" && !clean($("#f-scj-how").value)) return need($("#f-scj-how"), "Tell us how they found out");
+      if (kind === "first" && hist === "before") {
+        if (!clean($("#f-leaf").value)) return need($("#f-leaf"), "Tell us who the leaf and BBT were");
+        if (!clean($("#f-now").value)) return need($("#f-now"), "Tell us how your relationship is now");
+      }
       if (!clean($("#f-prog").value)) return need($("#f-prog"), "Tell us what has happened so far");
       if (!clean($("#f-diff").value)) return need($("#f-diff"), "Tell us what you're finding difficult");
     }
     if (n === 4) {
       if (!slots.size) { toast("Tap at least one time that works", true); return false; }
+      if (!clean($("#f-slotnote").value)) return need($("#f-slotnote"), "Add a note on timing (e.g. \"Any of these times\")");
       if (!$("#f-consent").checked) return need($("#f-consent"), "Tick the consent box to continue");
     }
     return true;
@@ -590,14 +616,14 @@ async function startApply() {
       name: clean($("#f-name").value).slice(0, 40),
       fruit: clean($("#f-fruit").value).slice(0, 40),
       relation: (relation === OTHER ? clean(etc.value) : relation).slice(0, 40),
-      howMet: kind === "again" ? "" : clean($("#f-how").value).slice(0, 1500),
-      job: first ? clean($("#f-job").value).slice(0, 60) : "",
-      age: first ? clean($("#f-age").value).slice(0, 12) : "",
-      home: first ? clean($("#f-home").value).slice(0, 60) : "",
-      faith: first ? faith : "",
+      howMet: clean($("#f-how").value).slice(0, 1500),
+      job: clean($("#f-job").value).slice(0, 60),
+      age: clean($("#f-age").value).slice(0, 12),
+      home: clean($("#f-home").value).slice(0, 60),
+      faith,
       prior: first ? hist : "",
-      knowsScj: first ? scj : "",
-      scjHow: first && scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
+      knowsScj: scj,
+      scjHow: scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
       leaf: before ? clean($("#f-leaf").value).slice(0, 80) : "",
       relNow: before ? clean($("#f-now").value).slice(0, 1500) : "",
       progress: clean($("#f-prog").value).slice(0, 4000),
@@ -1056,7 +1082,7 @@ async function initAdmin() {
     let html = "";
     for (let w = 0; w < 2; w++) {
       const ws = calStart + w * 7 * DAY;
-      html += `<div class="panel cal-week"><div class="cal-wk">Week ${w + 1}<span>${esc(dayLbl(ws))} – ${esc(dayLbl(ws + 6 * DAY))}</span></div><div class="cal-grid" style="--hh:${CAL.hh}px"><div></div>`;
+      html += `<div class="panel cal-week"><div class="cal-wk">Week ${w + 1}<span>${esc(dayLbl(ws))} – ${esc(dayLbl(ws + 6 * DAY))}</span><button class="btn sm cal-wk-png" type="button" data-w="${w}">Save image</button></div><div class="cal-grid" style="--hh:${CAL.hh}px"><div></div>`;
       for (let d = 0; d < 7; d++) {
         const t = new Date(ws).setDate(new Date(ws).getDate() + d);
         html += `<div class="cal-dh${t === today ? " today" : ""}"><small>${["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"][d]}</small>${esc(dayLbl(t))}</div>`;
@@ -1088,6 +1114,7 @@ async function initAdmin() {
     weeks.innerHTML = html;
     $$(".cal-ev:not(.done), .cal-chip", $('[data-pane="schedule"]')).forEach((el) => el.addEventListener("pointerdown", calDown));
     $$(".cal-ev.done", weeks).forEach((el) => (el.onclick = () => openReq(el.dataset.id)));
+    $$(".cal-wk-png", weeks).forEach((b) => (b.onclick = () => runSave(b, Number(b.dataset.w))));
   }
   const openReq = (id) => {
     if (calMode === "tool") { openTab("tools"); toolStore.pick && toolStore.pick(id); return; }
@@ -1184,23 +1211,28 @@ async function initAdmin() {
   $("#cal-today").onclick = () => { calStart = mondayOf(Date.now()); renderSchedule(); };
 
   // Save the two visible weeks as a PNG
-  $("#cal-png").onclick = async () => {
-    const btn = $("#cal-png"); btn.disabled = true; btn.textContent = "Saving…";
-    try { await document.fonts.ready; await saveScheduleImage(); }
+  async function runSave(btn, week) {
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Saving…";
+    try { await document.fonts.ready; await saveScheduleImage(week); }
     catch (e) { console.error(e); toast("Couldn't make the image", true); }
-    btn.disabled = false; btn.textContent = "Save image";
-  };
-  async function saveScheduleImage() {
+    btn.disabled = false; btn.textContent = label;
+  }
+  $("#cal-png").onclick = () => runSave($("#cal-png"));
+  // week: undefined = both weeks shown, 0 or 1 = that week only
+  async function saveScheduleImage(week) {
     const FONT = getComputedStyle(document.body).fontFamily;
     const NUM = getComputedStyle(document.documentElement).getPropertyValue("--num").trim() || FONT;
-    const end = calStart + 14 * DAY;
+    const one = week === 0 || week === 1, nW = one ? 1 : 2;
+    const start = calStart + (one ? week : 0) * 7 * DAY;
+    const end = start + nW * 7 * DAY;
     const S = calSrc();
-    const evs = S.rows.filter((r) => r.scheduledAt >= calStart && r.scheduledAt < end && r.status !== "closed");
+    const evs = S.rows.filter((r) => r.scheduledAt >= start && r.scheduledAt < end && r.status !== "closed");
     let h0 = 10, h1 = 21;
     evs.forEach((r) => { const d = new Date(r.scheduledAt); const s = d.getHours() + d.getMinutes() / 60; h0 = Math.min(h0, Math.floor(s)); h1 = Math.max(h1, Math.ceil(s + DUR / 60)); });
     const W = 1920, PADX = 44, TW = 70, HH = 74, colW = (W - PADX * 2 - TW) / 7;
     const gridH = (h1 - h0) * HH, weekH = 52 + 62 + gridH + 20;
-    const H = 36 + 76 + weekH * 2 + 60;
+    const H = 36 + 76 + weekH * nW + 60;
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const g = c.getContext("2d");
     const C = { red: "#DA291C", deep: "#B01E13", tint: "#FCECEA", ink: "#141212", ink2: "#3D3836", muted: "#7A716E", line: "#E7E2E0", mist: "#F6F4F3" };
@@ -1210,17 +1242,20 @@ async function initAdmin() {
     g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
     // header
     let y = 36;
-    g.fillStyle = C.red; rr(PADX, y, 44, 44, 5); g.fill();
-    g.fillStyle = "#fff"; const k = 44 / 32; g.fillRect(PADX + 13 * k, y + 6 * k, 6 * k, 20 * k); g.fillRect(PADX + 6 * k, y + 13 * k, 20 * k, 6 * k);
+    if (calMode === "tool") drawShovel(g, PADX, y, 44);
+    else {
+      g.fillStyle = C.red; rr(PADX, y, 44, 44, 5); g.fill();
+      g.fillStyle = "#fff"; const k = 44 / 32; g.fillRect(PADX + 13 * k, y + 6 * k, 6 * k, 20 * k); g.fillRect(PADX + 6 * k, y + 13 * k, 20 * k, 6 * k);
+    }
     g.fillStyle = C.ink; f(700, 34); g.textBaseline = "middle"; g.fillText(S.imgTitle, PADX + 60, y + 23);
-    g.textAlign = "right"; f(700, 18); g.fillText(`${new Date(calStart).toLocaleDateString("en-GB", { day: "numeric", month: "long" })} – ${new Date(end - DAY).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`, W - PADX, y + 10);
+    g.textAlign = "right"; f(700, 18); g.fillText(`${new Date(start).toLocaleDateString("en-GB", { day: "numeric", month: "long" })} – ${new Date(end - DAY).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`, W - PADX, y + 10);
     g.fillStyle = C.muted; f(400, 17); g.fillText(`${evs.length} session${evs.length === 1 ? "" : "s"} · 1 hour each`, W - PADX, y + 36);
     g.textAlign = "left";
     y += 64; g.fillStyle = C.red; g.fillRect(PADX, y, W - PADX * 2, 4); y += 12;
-    for (let w = 0; w < 2; w++) {
-      const ws = calStart + w * 7 * DAY;
+    for (let w = 0; w < nW; w++) {
+      const ws = start + w * 7 * DAY;
       y += 30;
-      g.fillStyle = C.red; f(800, 19, NUM); g.fillText(`WEEK ${w + 1}`, PADX, y);
+      g.fillStyle = C.red; f(800, 19, NUM); g.fillText(`WEEK ${one ? week + 1 : w + 1}`, PADX, y);
       g.fillStyle = C.ink; f(600, 22); g.fillText(`${dayLbl(ws)} – ${dayLbl(ws + 6 * DAY)}`, PADX + 104, y);
       y += 22;
       const days = [...Array(7)].map((_, d) => new Date(ws).setDate(new Date(ws).getDate() + d));
@@ -1266,14 +1301,14 @@ async function initAdmin() {
     }
     // legend
     y += 14; f(400, 16); let lx = PADX;
-    [["First request", C.tint, false], ["Follow-up request", "#fff", true], ["Name · Fruit", null]].forEach(([t, bg, line]) => {
+    (calMode === "tool" ? [["Tool check meeting", C.tint, false], ["Name · Tool", null]] : [["First request", C.tint, false], ["Follow-up request", "#fff", true], ["Name · Fruit", null]]).forEach(([t, bg, line]) => {
       if (bg) { g.fillStyle = bg; rr(lx, y - 7, 22, 14, 4); g.fill(); if (line) { g.strokeStyle = C.red; g.lineWidth = 1.5; rr(lx, y - 7, 22, 14, 4); g.stroke(); } g.fillStyle = C.red; g.fillRect(lx, y - 7, 5, 14); lx += 30; }
       g.fillStyle = C.muted; g.fillText(t, lx, y); lx += g.measureText(t).width + 28;
     });
     const blob = await new Promise((res) => c.toBlob(res, "image/png"));
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    { const d = new Date(calStart); a.download = `${calMode === "tool" ? "Tool_Check_Schedule" : "Feedback_Schedule"}_${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.png`; }
+    { const d = new Date(start); a.download = `${calMode === "tool" ? "Tool_Check_Schedule" : "Feedback_Schedule"}_${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.png`; }
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     toast("Image saved");
