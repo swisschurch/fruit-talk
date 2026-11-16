@@ -27,6 +27,14 @@ const TOOL_KEEP_DAYS = CFG.toolKeepDays || 365;       // Tool Check (finished) â
 const PRIVACY_CONTACT = CFG.privacyContact || "your group leader or the coordinator";
 const PRIVACY_DATE = "16 Nov 2026";
 const INITIALS_RE = /^(\p{L}\.?[\s-]?){1,3}$/u; // max 3 letters, e.g. "L.M." or "A K"
+// Member names: first name + initial of the surname ("Anna Keller" â†’ "Anna K.")
+function shortName(n) {
+  const t = clean(n).replace(/\s+/g, " ").split(" ").filter(Boolean);
+  if (t.length < 2) return t.join(" ");
+  const last = [...t.pop().replace(/[^\p{L}]/gu, "")][0];
+  return last ? `${t.join(" ")} ${last.toUpperCase()}.` : t.join(" ");
+}
+const bindShortName = (el) => el.addEventListener("blur", () => (el.value = shortName(el.value)));
 const CONF_NOTE = "Confidential. For internal use only. Do not forward, post or share this file.";
 
 const STATUS = [
@@ -513,7 +521,8 @@ async function startApply() {
   fillDepts();
   if (prof.zone) { zSel.value = prof.zone; }
   loadDepartments().then((d) => { if (d && d.length) { depts = d; fillDepts(); } });
-  if (prof.name) $("#f-name").value = prof.name;
+  if (prof.name) $("#f-name").value = shortName(prof.name);
+  bindShortName($("#f-name"));
 
   // Request type
   const setKind = (k) => {
@@ -612,7 +621,7 @@ async function startApply() {
     const data = {
       kind,
       dept: dSel.value, zone: zSel.value,
-      name: clean($("#f-name").value).slice(0, 40),
+      name: shortName($("#f-name").value).slice(0, 40),
       fruit: clean($("#f-fruit").value).toUpperCase().slice(0, 8),
       relation: (relation === OTHER ? clean(etc.value) : relation).slice(0, 40),
       howMet: kind === "again" ? "" : clean($("#f-how").value).slice(0, 1500),
@@ -712,7 +721,8 @@ async function startTool() {
   dSel.onchange = fillZones;
   fillDepts();
   loadDepartments().then((d) => { if (d && d.length) { depts = d; fillDepts(); } });
-  if (prof.name) $("#t-name").value = prof.name;
+  if (prof.name) $("#t-name").value = shortName(prof.name);
+  bindShortName($("#t-name"));
 
   const setFb = (v) => {
     fb = v;
@@ -773,7 +783,7 @@ async function startTool() {
     const discuss = fb === "discuss";
     const data = {
       dept: dSel.value, zone: zSel.value,
-      name: v("#t-name").slice(0, 40),
+      name: shortName(v("#t-name")).slice(0, 40),
       tool: v("#t-tool").slice(0, 60),
       target: v("#t-target").slice(0, 120),
       place: v("#t-place").slice(0, 120),
