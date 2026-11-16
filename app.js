@@ -670,6 +670,9 @@ const TOOL_ST = [
 const TSL = Object.fromEntries(TOOL_ST.map((s) => [s.id, s.l]));
 
 const TOOL_OPENS = new Date("2026-11-14T00:00:00").getTime();
+// Fruit Consultation requests: set to true to reopen the form
+const FRUIT_OPEN = false;
+function fruitOpen() { return FRUIT_OPEN || /[?&]preview=1/.test(location.search); }
 function toolOpen() { return Date.now() >= TOOL_OPENS || /[?&]preview=1/.test(location.search); }
 
 async function startTool() {
@@ -1582,9 +1585,14 @@ window.addEventListener("hashchange", () => location.reload());
   if (h === "admin") startAdmin();
   else if (h === "leader") startLeader();
   else if (h === "poster") startPoster();
-  else if (h === "fruit") startApply();
+  else if (h === "fruit") { if (fruitOpen()) startApply(); else { location.replace("./"); return; } }
   else if (h === "tool") startTool();
   else $("#view-home").hidden = false;
+  if (!fruitOpen()) {
+    const c = $("#home-fruit");
+    c.classList.add("locked"); c.setAttribute("aria-disabled", "true"); c.tabIndex = -1; c.removeAttribute("href");
+    $("b", c).insertAdjacentHTML("beforeend", ' <span class="soon">Temporarily closed</span>');
+  }
   if (!toolOpen()) {
     const c = $("#home-tool");
     c.classList.add("locked"); c.setAttribute("aria-disabled", "true"); c.tabIndex = -1; c.removeAttribute("href");
