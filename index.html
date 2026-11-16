@@ -96,6 +96,11 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .subnav button{min-height:38px;padding:0 14px;border:1.5px solid var(--line-2);background:var(--paper);border-radius:999px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-2);display:inline-flex;align-items:center;gap:4px}
 .subnav button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
 .home-card.no-ic{grid-template-columns:1fr auto}
+.privacy{max-width:720px;margin:0 auto;padding-top:24px;padding-bottom:48px;display:grid;gap:14px}
+.privacy h2{font-size:18px;margin:0 0 8px}.privacy p,.privacy li{font-size:15px;line-height:1.6;margin:0 0 8px}.privacy ul{padding-left:20px;margin:0 0 8px}
+.home-foot a,.consent small a{color:var(--red)}
+.anon-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 10px;padding:10px 14px;border-radius:8px;background:var(--mist);border:1px solid var(--line);font-size:14px}
+.conf-note{display:flex;gap:8px;align-items:flex-start;margin:8px 0;padding:8px 12px;border-radius:8px;background:#fff4f2;border:1px solid #f3c9c2;color:#8a1f12;font-size:13px;line-height:1.45}
 .home-ic{width:56px;height:56px;border-radius:12px;background:var(--red-tint);display:grid;place-items:center;font-size:28px}
 .home-t{display:grid;gap:4px}
 .home-t b{font-size:19px;font-weight:700}
@@ -379,7 +384,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
       <span class="home-t"><b>Evangelism Tool Check</b><span>Share your tool plan and get feedback before you use it</span></span>
       <span class="home-go" aria-hidden="true">→</span>
     </a>
-    <p class="home-foot">About 5 minutes · No login needed</p>
+    <p class="home-foot">About 5 minutes · No login needed · <a href="#privacy">Privacy notice</a></p>
   </div>
 </main>
 
@@ -445,7 +450,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <div class="tgrid-wrap"><div class="tgrid" id="t-grid"></div></div>
         </div>
         <div class="field js-discuss" hidden><label for="t-slotnote">Note on timing</label><input id="t-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
-        <label class="consent"><input type="checkbox" id="t-consent"><span>I agree that the coordinator and my group leader may read this.<small>So we can help you prepare well.</small></span></label>
+        <label class="consent"><input type="checkbox" id="t-consent"><span>I agree that the coordinator and my group leader may read this.<small>So we can help you prepare well. <a href="#privacy" target="_blank" rel="noopener">Privacy notice</a></small></span></label>
       </div>
     </section>
   </form>
@@ -507,8 +512,8 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
     <section class="step fade" data-step="2" hidden>
       <div class="step-title"><span class="n">2 / 4</span><h2>Your fruit</h2></div>
       <div class="card">
-        <p class="note">A first name or initials is enough.</p>
-        <div class="field"><label for="f-fruit">Fruit's name<span class="req">*</span></label><input id="f-fruit" class="inp" maxlength="40" required placeholder="Lukas M."></div>
+        <p class="note">Initials only, please. Do not write your fruit's full name anywhere in this form. For anyone under 18, talk to your leader instead of using this form.</p>
+        <div class="field"><label for="f-fruit">Fruit's initials<span class="req">*</span></label><input id="f-fruit" class="inp" maxlength="8" required placeholder="L.M." autocomplete="off" autocapitalize="characters"></div>
         <div class="field">
           <span class="lbl">Your relationship<span class="req">*</span></span>
           <div class="chips" id="f-rel-chips" role="group" aria-label="Your relationship"></div>
@@ -516,16 +521,16 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
         </div>
         <div class="field js-first-only">
           <label for="f-how">How did you get connected?</label>
+          <span class="hint">Only what we need to help. No names, addresses or contact details.</span>
           <textarea id="f-how" class="inp" maxlength="1500" placeholder="e.g. We've worked on the same team for two years and often have lunch together."></textarea>
         </div>
         <div class="grid2 js-first-only">
           <div class="field"><label for="f-job">Occupation</label><input id="f-job" class="inp" maxlength="60" placeholder="e.g. Nurse, student"></div>
-          <div class="field"><label for="f-age">Age</label><input id="f-age" class="inp" maxlength="12" inputmode="numeric" placeholder="e.g. 28 or about 30"></div>
+          <div class="field"><label for="f-home">Region</label><select id="f-home" class="inp"></select></div>
         </div>
-        <div class="field js-first-only"><label for="f-home">Where they live</label><input id="f-home" class="inp" maxlength="60" placeholder="e.g. Zurich, Kreis 4"></div>
         <div class="field js-first-only">
-          <span class="lbl">Are they a believer?<span class="req">*</span></span>
-          <div class="chips" id="f-faith" role="group" aria-label="Are they a believer?"></div>
+          <span class="lbl">Age range</span>
+          <div class="chips" id="f-age" role="group" aria-label="Age range"></div>
         </div>
       </div>
     </section>
@@ -541,15 +546,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
             <button type="button" data-hist="before" aria-pressed="false"><b>Progressed before</b><span>We have progressed this fruit</span></button>
           </div>
         </div>
-        <div class="field js-picked" hidden>
-          <span class="lbl">Do they know about Shincheonji?<span class="req">*</span></span>
-          <div class="chips" id="f-scj" role="group" aria-label="Do they know about Shincheonji?"></div>
-        </div>
-        <div class="field js-scj-yes" hidden>
-          <label for="f-scj-how">How did they find out?</label>
-          <textarea id="f-scj-how" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Read about it online after a Bible study"></textarea>
-        </div>
-        <div class="field js-before" hidden><label for="f-leaf">Who was the leaf and BBT?</label><input id="f-leaf" class="inp" maxlength="80" placeholder="e.g. Leaf: Anna K. · BBT: Daniel L."></div>
+                <div class="field js-before" hidden><label for="f-leaf">Who was the leaf and BBT?</label><input id="f-leaf" class="inp" maxlength="80" placeholder="e.g. Leaf: Anna K. · BBT: Daniel L."></div>
         <div class="field js-before" hidden>
           <label for="f-now">How is your relationship now?</label>
           <textarea id="f-now" class="inp" maxlength="1500" style="min-height:84px" placeholder="e.g. Still friendly, we meet once a month"></textarea>
@@ -557,6 +554,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
         <div class="field">
           <label for="f-prog" id="f-prog-l">What has happened so far?<span class="req">*</span></label>
           <span class="hint" id="f-prog-h">Please describe it in as much detail as you can</span>
+          <span class="hint">Only what we need to help. No names, addresses or contact details.</span>
           <textarea id="f-prog" class="inp" maxlength="4000" required style="min-height:150px"></textarea>
         </div>
         <div class="field">
@@ -575,7 +573,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <div class="tgrid-wrap"><div class="tgrid" id="f-grid"></div></div>
         </div>
         <div class="field"><label for="f-slotnote">Note on timing</label><input id="f-slotnote" class="inp" maxlength="300" placeholder="e.g. Wednesdays only after 7 pm"></div>
-        <label class="consent"><input type="checkbox" id="f-consent"><span>I agree that the coordinator and my group leader may read this.<small>So we can pray and care for this person together.</small></span></label>
+        <label class="consent"><input type="checkbox" id="f-consent"><span>I agree that the coordinator and my group leader may read this.<small>So we can pray and care for this person together. Details are anonymized after the consultation. <a href="#privacy" target="_blank" rel="noopener">Privacy notice</a></small></span></label>
       </div>
     </section>
   </form>
@@ -600,6 +598,62 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
         <button class="btn primary" id="d-again" type="button">Submit another fruit</button>
       </div>
     </div>
+  </div>
+</main>
+
+<!-- ================= Privacy notice ================= -->
+<main id="view-privacy" hidden>
+  <header class="a-head">
+    <div class="in gut">
+      <div class="brand"><a href="./" class="home-back" aria-label="Back to start">←</a><svg class="cross" width="26" height="26"><use href="#i-cross-w"/></svg><span class="js-church"></span></div>
+      <h1>Privacy notice</h1>
+      <p>How we handle what you share in these forms.</p>
+    </div>
+  </header>
+  <div class="gut privacy">
+    <section class="card">
+      <h2>Who is responsible</h2>
+      <p><span class="js-church"></span>, consultation coordinator. Questions or requests: <span class="js-contact"></span>.</p>
+    </section>
+    <section class="card">
+      <h2>What we collect</h2>
+      <ul>
+        <li><b>About you:</b> department, group and name.</li>
+        <li><b>About the person you ask about:</b> initials only, relationship, region, age range, occupation (optional), and a short description of your conversations and difficulties.</li>
+        <li><b>Evangelism Tool Check:</b> your tool plan and the times that suit you.</li>
+      </ul>
+      <p>We do <b>not</b> ask for full names, addresses, contact details or religious beliefs of the person you ask about. Please don't write them, or health or family details, in free-text fields.</p>
+      <p>Please don't submit requests about anyone under 18. Talk to your leader instead.</p>
+      <p>Your own name together with your group shows that you belong to our church. This is sensitive information, so it is protected in the same way.</p>
+    </section>
+    <section class="card">
+      <h2>Why</h2>
+      <p>Only to schedule a consultation with you and your group leader and to give you feedback. Nothing is used for anything else, sold or published.</p>
+    </section>
+    <section class="card">
+      <h2>Who can see it</h2>
+      <p>The coordinator and your own group leader. Big screens and public pages show only numbers and initials.</p>
+      <p>Screenshots, saved images and exported files are for internal use only and must not be forwarded or shared.</p>
+    </section>
+    <section class="card">
+      <h2>Where it is stored</h2>
+      <p>Google Firebase (Cloud Firestore), in Google's data centre in <b>Zurich, Switzerland</b> (europe-west6). Sign-in is handled by Google, which is certified under the Swiss-U.S. Data Privacy Framework.</p>
+      <p>Only signed-in coordinators see all requests. Each leader sees only the requests assigned to them.</p>
+      <p>We do not put these records into calendars, chat groups or AI tools with names or details. Schedule notices in group chats show only times and first names.</p>
+    </section>
+    <section class="card">
+      <h2>How long we keep it</h2>
+      <ul>
+        <li><b>Fruit Consultation:</b> when closed, <span class="js-anon-days"></span> days after the consultation, or at the latest <span class="js-follow-days"></span> days after it while following up, the details about the person (initials, background, your descriptions, notes and feedback) are deleted.</li>
+        <li><b>Evangelism Tool Check:</b> <span class="js-tool-days"></span> days after feedback, your name and plan details are deleted.</li>
+      </ul>
+      <p>Only anonymous numbers remain, such as department, group, date and status.</p>
+    </section>
+    <section class="card">
+      <h2>Your rights</h2>
+      <p>You can ask to see, correct or delete what you submitted at any time. Contact <span class="js-contact"></span>.</p>
+    </section>
+    <p class="home-foot">Last updated: <span class="js-priv-date"></span></p>
   </div>
 </main>
 
@@ -641,6 +695,8 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
           <ul class="list" id="ad-bulk-result" style="border:1px solid var(--line);border-radius:8px" hidden></ul>
         </div>
       </div>
+      <p class="conf-note">🔒 <span>Confidential. Saved images, CSV files and screenshots are for internal use only. Do not forward, post or share them, and delete them when no longer needed.</span></p>
+      <div class="anon-bar" id="ad-anon" hidden></div>
       <div class="board">
         <div class="panel">
           <div class="panel-head">
@@ -666,6 +722,7 @@ body.desk-on::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-ar
         <button class="btn sm" id="cal-next" type="button" aria-label="Next week">→</button>
         <button class="btn sm primary" id="cal-png" type="button">Save image</button>
       </div>
+      <p class="conf-note">🔒 <span>Confidential. Saved schedule images are for internal use only. Do not forward, post or share them.</span></p>
       <p class="cal-help">Drag a meeting to another day or time to move it (15-minute steps). Drag a name from <b>Not scheduled yet</b> onto the calendar to book it. Click a meeting to open it.</p>
       <div class="panel cal-tray"><div class="cal-tray-h">Not scheduled yet <span id="cal-tray-n"></span></div><div class="cal-chips" id="cal-tray"></div></div>
       <div id="cal-weeks" class="set-grid"></div>

@@ -18,6 +18,16 @@ const OTHER = "Other";
 const FAITH = ["Attends a church", "Christian, not attending", "Other religion", "No religion", "Not sure"];
 const SCJ = [["yes", "Yes, they know"], ["no", "No"], ["unsure", "Not sure"]];
 const HIST = { new: "New fruit", before: "Progressed before" };
+// Privacy: coarse categories only (no exact age or address)
+const AGES = CFG.ageRanges || ["18–25", "26–35", "36–45", "46–60", "60+"];
+const REGIONS = CFG.regions || ["Zurich city", "Canton Zurich", "Aargau", "Bern", "Basel", "Lucerne", "St. Gallen", "Central Switzerland", "Eastern Switzerland", "Geneva", "Vaud", "Ticino", "Other Switzerland", "Abroad"];
+const ANON_DAYS = CFG.anonymizeAfterDays || 30;      // Consulted → anonymize after
+const FOLLOW_MAX_DAYS = CFG.followUpMaxDays || 180;   // Following up → anonymize after (max)
+const TOOL_KEEP_DAYS = CFG.toolKeepDays || 365;       // Tool Check (finished) → clear after
+const PRIVACY_CONTACT = CFG.privacyContact || "your group leader or the coordinator";
+const PRIVACY_DATE = "16 Nov 2026";
+const INITIALS_RE = /^(\p{L}\.?[\s-]?){1,3}$/u; // max 3 letters, e.g. "L.M." or "A K"
+const CONF_NOTE = "Confidential. For internal use only. Do not forward, post or share this file.";
 
 const STATUS = [
   { id: "new", l: "Received" },
@@ -283,12 +293,12 @@ function requestSections(r, list) {
   <div class="sec">
     <h4>Fruit</h4>
     <dl class="kv">
-      <dt>Name</dt><dd><b>${esc(r.fruit)}</b></dd>
+      <dt>Initials</dt><dd><b>${esc(r.fruit)}</b>${r.anon ? ' <span class="pill">Anonymized</span>' : ""}</dd>
       <dt>Relationship</dt><dd>${esc(r.relation || "–")}</dd>
       ${r.kind === "again" ? "" : `<dt>How connected</dt><dd>${esc(r.howMet || "–")}</dd>`}
       ${r.job ? `<dt>Occupation</dt><dd>${esc(r.job)}</dd>` : ""}
-      ${r.age ? `<dt>Age</dt><dd>${esc(r.age)}</dd>` : ""}
-      ${r.home ? `<dt>Lives in</dt><dd>${esc(r.home)}</dd>` : ""}
+      ${r.age ? `<dt>Age range</dt><dd>${esc(r.age)}</dd>` : ""}
+      ${r.home ? `<dt>Region</dt><dd>${esc(r.home)}</dd>` : ""}
       ${r.faith ? `<dt>Believer</dt><dd>${esc(r.faith)}</dd>` : ""}
     </dl>
   </div>
@@ -296,7 +306,7 @@ function requestSections(r, list) {
     <h4>History</h4>
     <dl class="kv">
       <dt>Progressed</dt><dd><b>${esc(HIST[r.prior] || r.prior)}</b></dd>
-      <dt>Knows SCJ</dt><dd>${esc((SCJ.find((x) => x[0] === r.knowsScj) || [, "–"])[1])}</dd>
+      ${r.knowsScj ? `<dt>Knows SCJ</dt><dd>${esc((SCJ.find((x) => x[0] === r.knowsScj) || [, "–"])[1])}</dd>` : ""}
       ${r.scjHow ? `<dt>How they knew</dt><dd>${esc(r.scjHow)}</dd>` : ""}
       ${r.leaf ? `<dt>Leaf &amp; BBT</dt><dd>${esc(r.leaf)}</dd>` : ""}
       ${r.relNow ? `<dt>Relationship now</dt><dd>${esc(r.relNow)}</dd>` : ""}
@@ -368,7 +378,8 @@ async function saveRequestImage(box, r, btn) {
         <span style="font-size:13px;color:var(--muted)">${esc(r._title || "Fruit Consultation")} · Requested ${esc(fmtDT(r.createdAt))}${r.scheduledAt ? " · Meeting <b style=\"color:var(--ink)\">" + esc(fmtDT(r.scheduledAt)) + "</b>" : ""}${r.place ? " · " + esc(r.place) : ""}</span>
       </div>
     </div>
-    <div class="d-body" style="padding:4px 0 0">${src.innerHTML}</div>`;
+    <div class="d-body" style="padding:4px 0 0">${src.innerHTML}</div>
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line);color:#B01E13;font-size:12px;font-weight:700">🔒 ${esc(CONF_NOTE)}</div>`;
   document.body.appendChild(card);
   try {
     const h2c = await loadH2C();
@@ -377,10 +388,10 @@ async function saveRequestImage(box, r, btn) {
     const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${r._file || "Fruit"}_${(r.name + "_" + r.fruit).replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "")}.png`;
+    a.download = `CONFIDENTIAL_${r._file || "Fruit"}_${(r.name + "_" + r.fruit).replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "")}.png`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast("Image saved");
+    toast("Image saved · internal use only, do not share");
   } catch (e) { console.error(e); toast("Couldn't make the image", true); }
   card.remove();
   btn.disabled = false; btn.textContent = "Save image";
@@ -455,6 +466,7 @@ function gate(root, { check, onReady, deniedMsg }) {
 }
 
 function downloadCSV(name, rows) {
+  rows = [[CONF_NOTE], ...rows];
   const csv = "﻿" + rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -526,26 +538,25 @@ async function startApply() {
     if (!etc.hidden) etc.focus();
   }));
 
-  // Believer, history, Shincheonji
-  let faith = "", hist = "", scj = "";
-  const faithEl = $("#f-faith"), scjEl = $("#f-scj");
-  faithEl.innerHTML = FAITH.map((f) => `<button type="button" class="chip" data-v="${esc(f)}" aria-pressed="false">${esc(f)}</button>`).join("");
-  scjEl.innerHTML = SCJ.map(([v, l]) => `<button type="button" class="chip" data-v="${v}" aria-pressed="false">${esc(l)}</button>`).join("");
+  // Age range, region, history
+  let age = "", hist = "";
+  const ageEl = $("#f-age"), homeSel = $("#f-home");
+  ageEl.innerHTML = AGES.map((f) => `<button type="button" class="chip" data-v="${esc(f)}" aria-pressed="false">${esc(f)}</button>`).join("");
+  homeSel.innerHTML = `<option value="">Choose (optional)</option>` + REGIONS.map((r) => `<option>${esc(r)}</option>`).join("");
   const pickIn = (box, v) => $$("button", box).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === v)));
-  $$("button", faithEl).forEach((c) => (c.onclick = () => { faith = c.dataset.v; pickIn(faithEl, faith); }));
+  $$("button", ageEl).forEach((c) => (c.onclick = () => { age = age === c.dataset.v ? "" : c.dataset.v; pickIn(ageEl, age); }));
+  const fruitIn = $("#f-fruit");
+  fruitIn.addEventListener("input", () => { const v = fruitIn.value.toUpperCase(); if (v !== fruitIn.value) fruitIn.value = v; });
   const syncHist = () => {
     $$("[data-hist]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.hist === hist)));
     const first = kind === "first", before = first && hist === "before";
-    $$(".js-picked").forEach((el) => (el.hidden = !(first && hist)));
     $$(".js-before").forEach((el) => (el.hidden = !before));
-    $$(".js-scj-yes").forEach((el) => (el.hidden = !(first && hist && scj === "yes")));
     if (first) {
       $("#f-prog-l").innerHTML = (before ? "Please describe how you progressed this fruit in detail" : "What has happened so far?") + '<span class="req">*</span>';
       $("#f-prog-h").textContent = before ? "What you did, how they responded, and where it stopped" : "Every conversation matters. Please write in detail.";
     }
   };
   $$("[data-hist]").forEach((b) => (b.onclick = () => { hist = b.dataset.hist; syncHist(); }));
-  $$("button", scjEl).forEach((c) => (c.onclick = () => { scj = c.dataset.v; pickIn(scjEl, scj); syncHist(); }));
 
   // Time grid
   const grid = $("#f-grid");
@@ -577,14 +588,13 @@ async function startApply() {
       if (!clean($("#f-name").value)) return need($("#f-name"), "Enter your name");
     }
     if (n === 2) {
-      if (!clean($("#f-fruit").value)) return need($("#f-fruit"), "Enter your fruit's initials or a nickname");
+      if (!clean($("#f-fruit").value)) return need($("#f-fruit"), "Enter your fruit's initials");
+      if (!INITIALS_RE.test(clean($("#f-fruit").value))) return need($("#f-fruit"), "Initials only, e.g. L.M. (no full names)");
       if (!relation) { toast("Choose your relationship", true); return false; }
       if (relation === OTHER && !clean(etc.value)) return need(etc, "Describe the relationship");
-      if (kind === "first" && !faith) { toast("Choose whether they are a believer", true); return false; }
     }
     if (n === 3) {
       if (kind === "first" && !hist) { toast("Choose New fruit or Worked with before", true); return false; }
-      if (kind === "first" && !scj) { toast("Choose whether they know about Shincheonji", true); return false; }
       if (!clean($("#f-prog").value)) return need($("#f-prog"), "Tell us what has happened so far");
       if (!clean($("#f-diff").value)) return need($("#f-diff"), "Tell us what you're finding difficult");
     }
@@ -603,16 +613,16 @@ async function startApply() {
       kind,
       dept: dSel.value, zone: zSel.value,
       name: clean($("#f-name").value).slice(0, 40),
-      fruit: clean($("#f-fruit").value).slice(0, 40),
+      fruit: clean($("#f-fruit").value).toUpperCase().slice(0, 8),
       relation: (relation === OTHER ? clean(etc.value) : relation).slice(0, 40),
       howMet: kind === "again" ? "" : clean($("#f-how").value).slice(0, 1500),
       job: first ? clean($("#f-job").value).slice(0, 60) : "",
-      age: first ? clean($("#f-age").value).slice(0, 12) : "",
-      home: first ? clean($("#f-home").value).slice(0, 60) : "",
-      faith: first ? faith : "",
+      age: first ? age : "",
+      home: first ? homeSel.value : "",
+      faith: "",
       prior: first ? hist : "",
-      knowsScj: first ? scj : "",
-      scjHow: first && scj === "yes" ? clean($("#f-scj-how").value).slice(0, 1500) : "",
+      knowsScj: "",
+      scjHow: "",
       leaf: before ? clean($("#f-leaf").value).slice(0, 80) : "",
       relNow: before ? clean($("#f-now").value).slice(0, 1500) : "",
       progress: clean($("#f-prog").value).slice(0, 4000),
@@ -641,8 +651,8 @@ async function startApply() {
     }
   };
   $("#d-again").onclick = () => {
-    ["#f-fruit", "#f-how", "#f-job", "#f-age", "#f-home", "#f-scj-how", "#f-leaf", "#f-now", "#f-prog", "#f-diff", "#f-slotnote", "#f-rel-etc"].forEach((s) => ($(s).value = ""));
-    faith = hist = scj = ""; pickIn(faithEl, ""); pickIn(scjEl, ""); syncHist();
+    ["#f-fruit", "#f-how", "#f-job", "#f-home", "#f-leaf", "#f-now", "#f-prog", "#f-diff", "#f-slotnote", "#f-rel-etc"].forEach((s) => ($(s).value = ""));
+    age = hist = ""; pickIn(ageEl, ""); syncHist();
     $("#f-consent").checked = false;
     relation = ""; etc.hidden = true;
     $$(".chip", chips).forEach((x) => x.setAttribute("aria-pressed", "false"));
@@ -909,7 +919,7 @@ function initToolChecks() {
   $("#tc-q").addEventListener("input", (e) => { q = e.target.value; render(); });
   $$("#tc-f button").forEach((b) => (b.onclick = () => { f = b.dataset.f; $$("#tc-f button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); render(); }));
   toolStore.pick = (id) => { sel = id; dirty = false; render(); $("#tc-detail").classList.remove("closed"); };
-  backend.watchTools((l) => { tl = l; toolStore.list = l; render(); toolStore.onChange && toolStore.onChange(); }, (e) => { console.error(e); toast("Couldn't load tool checks: " + (e.code || e.message), true); });
+  backend.watchTools((l) => { tl = l; toolStore.list = l; render(); toolStore.onChange && toolStore.onChange(); toolStore.onAnon && toolStore.onAnon(); }, (e) => { console.error(e); toast("Couldn't load tool checks: " + (e.code || e.message), true); });
 }
 
 // =====================================================================
@@ -1224,7 +1234,7 @@ async function initAdmin() {
     evs.forEach((r) => { const d = new Date(r.scheduledAt); const s = d.getHours() + d.getMinutes() / 60; h0 = Math.min(h0, Math.floor(s)); h1 = Math.max(h1, Math.ceil(s + DUR / 60)); });
     const W = 1920, PADX = 44, TW = 70, HH = 74, colW = (W - PADX * 2 - TW) / 7;
     const gridH = (h1 - h0) * HH, weekH = 52 + 62 + gridH + 20;
-    const H = 36 + 76 + weekH * nW + 60;
+    const H = 36 + 76 + weekH * nW + 100;
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const g = c.getContext("2d");
     const C = { red: "#DA291C", deep: "#B01E13", tint: "#FCECEA", ink: "#141212", ink2: "#3D3836", muted: "#7A716E", line: "#E7E2E0", mist: "#F6F4F3" };
@@ -1297,13 +1307,14 @@ async function initAdmin() {
       if (bg) { g.fillStyle = bg; rr(lx, y - 7, 22, 14, 4); g.fill(); if (line) { g.strokeStyle = C.red; g.lineWidth = 1.5; rr(lx, y - 7, 22, 14, 4); g.stroke(); } g.fillStyle = C.red; g.fillRect(lx, y - 7, 5, 14); lx += 30; }
       g.fillStyle = C.muted; g.fillText(t, lx, y); lx += g.measureText(t).width + 28;
     });
+    y += 40; g.fillStyle = C.deep; f(700, 16); g.textAlign = "left"; g.fillText("CONFIDENTIAL · " + CONF_NOTE, PADX, y);
     const blob = await new Promise((res) => c.toBlob(res, "image/png"));
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    { const d = new Date(start); a.download = `${calMode === "tool" ? "Tool_Check_Schedule" : "Feedback_Schedule"}_${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.png`; }
+    { const d = new Date(start); a.download = `CONFIDENTIAL_${calMode === "tool" ? "Tool_Check_Schedule" : "Feedback_Schedule"}_${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.png`; }
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast("Image saved");
+    toast("Image saved · internal use only, do not share");
   }
 
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; render(); });
@@ -1349,14 +1360,42 @@ async function initAdmin() {
   };
 
   $("#ad-csv").onclick = () => {
-    const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Occupation", "Age", "Lives in", "Believer", "History", "Knows SCJ", "How they knew", "Leaf & BBT", "Relationship now", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
-    const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.job, r.age, r.home, r.faith, HIST[r.prior] || "", (SCJ.find((x) => x[0] === r.knowsScj) || [, ""])[1], r.scjHow, r.leaf, r.relNow, r.progress, r.difficulty,
+    const head = ["Requested", "Type", "Department", "Group", "Name", "Fruit", "Relationship", "How connected", "Occupation", "Age range", "Region", "History", "Leaf & BBT", "Relationship now", "Progress", "Difficulties", "Available times", "Time note", "Status", "Meeting", "Place", "Leader", "Coordinator note", "Feedback", "Follow-ups"];
+    const rows = list.map((r) => [fmtDT(r.createdAt), r.kind === "again" ? "Follow-up" : "First", r.dept, r.zone, r.name, r.fruit, r.relation, r.howMet, r.job, r.age, r.home, HIST[r.prior] || "", r.leaf, r.relNow, r.progress, r.difficulty,
       slotsText(r.slots), r.slotNote, SL[r.status], fmtDT(r.scheduledAt), r.place, r.leaderName, r.adminNote, r.feedback,
       (r.followUps || []).map((f) => `${fmtDate(f.at)}: ${f.text}`).join(" / ")]);
-    downloadCSV(`fruit-consultations_${todayInput()}.csv`, [head, ...rows]);
+    downloadCSV(`CONFIDENTIAL_fruit-consultations_${todayInput()}.csv`, [head, ...rows]);
   };
 
-  backend.watchAll((l) => { list = l; render(); }, (e) => { console.error(e); toast("Couldn't load requests: " + (e.code || e.message), true); });
+  // ---------- Anonymize finished consultations ----------
+  // Closed, or Consulted more than ANON_DAYS days ago (Following up is kept).
+  // Keeps only numbers: type, department, group, member, relationship, region, age range, history, status, dates.
+  const tsOf = (r) => { const v = r.scheduledAt || r.createdAt || 0; return typeof v === "number" ? v : (v.toMillis ? v.toMillis() : +new Date(v)); };
+  const anonDue = () => list.filter((r) => !r.anon && (r.status === "closed"
+    || (r.status === "done" && tsOf(r) < Date.now() - ANON_DAYS * 864e5)
+    || (r.status === "follow" && tsOf(r) < Date.now() - FOLLOW_MAX_DAYS * 864e5)));
+  const toolDue = () => (toolStore.list || []).filter((r) => !r.anon && ["done", "closed"].includes(r.status) && tsOf(r) < Date.now() - TOOL_KEEP_DAYS * 864e5);
+  const TOOL_ANON = () => ({ anon: true, anonAt: Date.now(), name: "–", target: "", place: "", concept: "", materials: "", participation: "", opening: "", flow: "", activity: "", ask: "", slotNote: "", feedback: "" });
+  const ANON_PATCH = () => ({ anon: true, anonAt: Date.now(), fruit: "–", howMet: "", job: "", faith: "", knowsScj: "", scjHow: "", leaf: "", relNow: "",
+    progress: "", difficulty: "", slotNote: "", adminNote: "", feedback: "", followUps: [] });
+  // Runs automatically whenever the coordinator screen is open (no button, no confirm),
+  // so the retention promised in the privacy notice is always kept.
+  let anonBusy = false, anonDone = 0;
+  const renderAnon = async () => {
+    const bar = $("#ad-anon");
+    if (anonBusy) return;
+    const due = anonDue(), tdue = toolDue();
+    if (due.length || tdue.length) {
+      anonBusy = true;
+      for (const r of due) { try { await backend.updateRequest(r.id, ANON_PATCH()); anonDone++; } catch (err) { console.error(err); } }
+      for (const r of tdue) { try { await backend.updateTool(r.id, TOOL_ANON()); anonDone++; } catch (err) { console.error(err); } }
+      anonBusy = false;
+    }
+    bar.hidden = !anonDone;
+    if (anonDone) bar.innerHTML = `<span>🔒 ${anonDone} finished record${anonDone === 1 ? " was" : "s were"} anonymized automatically (Closed, Consulted over ${ANON_DAYS} days, Following up over ${FOLLOW_MAX_DAYS} days, Tool Check over ${TOOL_KEEP_DAYS} days).</span>`;
+  };
+  toolStore.onAnon = renderAnon;
+  backend.watchAll((l) => { list = l; render(); renderAnon(); }, (e) => { console.error(e); toast("Couldn't load requests: " + (e.code || e.message), true); });
   initToolChecks();
 
   // ---------- Groups & leaders ----------
@@ -1578,6 +1617,11 @@ function startPoster() {
 // Start
 // =====================================================================
 $$(".js-church").forEach((el) => (el.textContent = CFG.churchName || ""));
+$$(".js-contact").forEach((el) => (el.textContent = PRIVACY_CONTACT));
+$$(".js-anon-days").forEach((el) => (el.textContent = ANON_DAYS));
+$$(".js-follow-days").forEach((el) => (el.textContent = FOLLOW_MAX_DAYS));
+$$(".js-tool-days").forEach((el) => (el.textContent = TOOL_KEEP_DAYS));
+$$(".js-priv-date").forEach((el) => (el.textContent = PRIVACY_DATE));
 window.addEventListener("hashchange", () => location.reload());
 (async () => {
   await initBackend();
@@ -1587,6 +1631,7 @@ window.addEventListener("hashchange", () => location.reload());
   else if (h === "poster") startPoster();
   else if (h === "fruit") { if (fruitOpen()) startApply(); else { location.replace("./"); return; } }
   else if (h === "tool") startTool();
+  else if (h === "privacy") $("#view-privacy").hidden = false;
   else $("#view-home").hidden = false;
   if (!fruitOpen()) {
     const c = $("#home-fruit");
